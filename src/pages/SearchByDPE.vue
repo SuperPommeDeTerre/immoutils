@@ -263,6 +263,10 @@
     }
     if (selectedNoteDPE.value && selectedNoteDPE.value.length > 0) searchParams.append('etiquette_dpe_in', selectedNoteDPE.value.join(','))
     searchParams.append('select', [
+      'nom_commune_brut',
+      'adresse_brut',
+      'code_postal_brut',
+      'adresse_complete_brut',
       'date_etablissement_dpe',
       'numero_dpe',
       'etiquette_dpe',
@@ -281,20 +285,45 @@
     searchParams.append('size', '500')
     await fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
       .then(data => data.json())
-      .then(data => {
+      .then(async data => {
         const computedResults = []
         for (const result of data.results) {
           const individualResult = { ...result }
+          // Try to complete the address using the raw address if available
+          if (!result.nom_rue_ban && result.adresse_brut) {
+            individualResult.nom_rue_ban = result.adresse_brut
+          }
+          if (!result.code_postal_ban && result.code_postal_brut) {
+            individualResult.code_postal_ban = result.code_postal_brut
+          }
+          if (!result.nom_commune_ban && result.nom_commune_brut) {
+            individualResult.nom_commune_ban = result.nom_commune_brut
+          }
           // Convert X/Y (referentiel epsg 2154 lambert 93) to latitude/longitude (WGS84)
-          const x = result.coordonnee_cartographique_x_ban
-          const y = result.coordonnee_cartographique_y_ban
-          if (!x || !y) {
-            individualResult.longitude = 0
-            individualResult.latitude = 0
+          if (!result.coordonnee_cartographique_x_ban && !result.coordonnee_cartographique_y_ban && result.adresse_complete_brut) {
+            await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(result.adresse_complete_brut)}`)
+              .then(response => response.json())
+              .then(data => {
+                if (data.features && data.features.length > 0) {
+                  const coords = data.features[0].geometry.coordinates
+                  individualResult.longitude = coords[0]
+                  individualResult.latitude = coords[1]
+                  individualResult.coordonnee_cartographique_x_ban = data.features[0].properties.x
+                  individualResult.coordonnee_cartographique_y_ban = data.features[0].properties.y
+                  individualResult.code_insee_ban = data.features[0].properties.citycode
+                }
+              })
           } else {
-            const gpsCoordinates = proj4('+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +units=m +no_defs +type=crs', 'EPSG:4326').forward([x, y])
-            individualResult.longitude = gpsCoordinates[0]
-            individualResult.latitude = gpsCoordinates[1]
+            const x = result.coordonnee_cartographique_x_ban
+            const y = result.coordonnee_cartographique_y_ban
+            if (!x || !y) {
+              individualResult.longitude = 0
+              individualResult.latitude = 0
+            } else {
+              const gpsCoordinates = proj4('+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +units=m +no_defs +type=crs', 'EPSG:4326').forward([x, y])
+              individualResult.longitude = gpsCoordinates[0]
+              individualResult.latitude = gpsCoordinates[1]
+            }
           }
           computedResults.push(individualResult)
         }
