@@ -73,7 +73,18 @@
   </v-container>
 
   <v-container fluid>
+    <v-skeleton-loader
+      v-if="loading"
+      type="table"
+      :types="{
+        'table-thead': 'heading@3',
+        'table-row': 'table-cell@3',
+        'table-tbody': 'table-row-divider@4',
+      }"
+    />
+
     <v-table
+      v-else-if="firstResearchDone"
       density="compact"
       fixed-header
     >
@@ -92,7 +103,7 @@
 
       <tbody>
         <tr v-for="result in results" :key="result.numero_dpe">
-          <td><a :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${result.numero_dpe}`" target="_blank">{{ result.numero_dpe }}</a></td>
+          <td><a :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${result.numero_dpe}`" target="_blank" title="Voir le DPE">{{ result.numero_dpe }}</a></td>
           <td>{{ new Date(result.date_etablissement_dpe).toLocaleDateString() }}</td>
 
           <td>
@@ -151,6 +162,7 @@
   const selectedDateDPE = shallowRef(null)
   const selectedBuildingTypes = ref([])
   const buildingSurface = ref<number | null>(null)
+  const firstResearchDone = ref(false)
 
   const dpeNotes = [
     {
@@ -227,13 +239,13 @@
     return cadastreLink
   }
 
-  async function validateCriterias (_event: Promise<any>) {
-    loading.value = true
-    loading.value = false
+  function validateCriterias (e: Event) {
+    e.preventDefault()
   }
 
   async function search () {
     loading.value = true
+    results.value = []
     const searchParams = new URLSearchParams()
     // if (selectedCommune.value) searchParams.append('q', selectedCommune.value)
     if (selectedCommune.value) searchParams.append('nom_commune_brut_search', selectedCommune.value)
@@ -330,5 +342,6 @@
         results.value = computedResults
       })
     loading.value = false
+    firstResearchDone.value = true
   }
 </script>
