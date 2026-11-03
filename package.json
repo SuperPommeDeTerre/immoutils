@@ -1,0 +1,47 @@
+{
+  "name": "immoutils",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.3",
+    "@mdi/font": "7.4",
+    "pinia": "^4.1",
+    "proj4": "^2.22.0",
+    "vue": "^3.5",
+    "vue-i18n": "^11.3",
+    "vue-router": "^5.0",
+    "vuetify": "^4.0"
+  },
+  "devDependencies": {
+    "@tsconfig/node22": "^22.0",
+    "@types/node": "^26.6",
+    "@vitejs/plugin-vue": "^6.0",
+    "@vue/tsconfig": "^0.9",
+    "@vuetify/mcp": "^0.12",
+    "eslint": "^10.14",
+    "eslint-config-vuetify": "^4.3",
+    "npm-run-all2": "^9.0",
+    "sass-embedded": "^1.98",
+    "typescript": "npm:typescript-native-bridge@6.0.3-bridge.19.tsgo.7.0.2",
+    "unplugin-fonts": "^2.1",
+    "vite": "^8.0",
+    "vite-plugin-vuetify": "^2.1",
+    "vue-tsc": "^3.2"
+  },
+  "overrides": {
+    "typescript": "$typescript"
+  },
+  "allowScripts": {
+    "@parcel/watcher@2.6.0": true
+  }
+}
