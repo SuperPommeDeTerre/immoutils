@@ -73,63 +73,53 @@
   </v-container>
 
   <v-container fluid>
-    <v-skeleton-loader
-      v-if="loading"
-      type="table"
-      :types="{
-        'table-thead': 'heading@3',
-        'table-row': 'table-cell@3',
-        'table-tbody': 'table-row-divider@4',
-      }"
-    />
+    <v-locale-provider locale="fr">
+      <v-data-table
+        density="compact"
+        fixed-header
+        :headers="resultsHeaders"
+        :items="results"
+        :items-per-page="100"
+        :loading="loading"
+        sort-asc-icon="mdi-sort-ascending"
+        :sort-by="[{ key: 'date_etablissement_dpe', order: 'asc' }]"
+        sort-desc-icon="mdi-sort-descending"
+        sort-icon="mdi-swap-vertical"
+      >
+        <template #loading>
+          <v-skeleton-loader type="table-row@10" />
+        </template>
 
-    <v-table
-      v-else-if="firstResearchDone"
-      density="compact"
-      fixed-header
-    >
-      <thead>
-        <tr>
-          <th scope="col">N° DPE</th>
-          <th scope="col">Date d'établissement</th>
-          <th scope="col">Etiquette DPE</th>
-          <th scope="col">Surface habitable</th>
-          <th scope="col">Type de bâtiment</th>
-          <th scope="col">Année de construction</th>
-          <th scope="col">Adresse</th>
-          <th class="text-center" scope="col">Liens</th>
-        </tr>
-      </thead>
+        <template #item="{ item }">
+          <tr>
+            <td><a :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.numero_dpe}`" target="_blank" title="Voir le DPE">{{ item.numero_dpe }}</a></td>
+            <td>{{ new Date(item.date_etablissement_dpe).toLocaleDateString() }}</td>
 
-      <tbody>
-        <tr v-for="result in results" :key="result.numero_dpe">
-          <td><a :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${result.numero_dpe}`" target="_blank" title="Voir le DPE">{{ result.numero_dpe }}</a></td>
-          <td>{{ new Date(result.date_etablissement_dpe).toLocaleDateString() }}</td>
+            <td>
+              <template v-for="dpeNote in dpeNotes">
+                <v-chip
+                  v-if="item.etiquette_dpe==dpeNote.value"
+                  :key="dpeNote.value"
+                  :color="dpeNote.color"
+                  label
+                  variant="flat"
+                >{{ dpeNote.value }}</v-chip>
+              </template>
+            </td>
 
-          <td>
-            <template v-for="dpeNote in dpeNotes">
-              <v-chip
-                v-if="result.etiquette_dpe==dpeNote.value"
-                :key="dpeNote.value"
-                :color="dpeNote.color"
-                label
-                variant="flat"
-              >{{ dpeNote.value }}</v-chip>
-            </template>
-          </td>
+            <td>{{ new Intl.NumberFormat("fr-FR", { style: "decimal" }).format(item.surface_habitable_logement) }}</td>
+            <td>{{ capitalize(item.type_batiment) }}</td>
+            <td>{{ item.annee_construction }}</td>
+            <td><a :href="getGoogleMapsLink(item)" target="_blank" title="Voir sur Google Maps">{{ item.numero_voie_ban??'' }} {{ item.nom_rue_ban }}, {{ item.code_postal_ban }} {{ item.nom_commune_ban }}</a></td>
 
-          <td>{{ result.surface_habitable_logement }}</td>
-          <td>{{ capitalize(result.type_batiment) }}</td>
-          <td>{{ result.annee_construction }}</td>
-          <td><a :href="getGoogleMapsLink(result)" target="_blank" title="Voir sur Google Maps">{{ result.numero_voie_ban??'' }} {{ result.nom_rue_ban }}, {{ result.code_postal_ban }} {{ result.nom_commune_ban }}</a></td>
-
-          <td class="text-center">
-            <v-btn density="compact" icon="mdi-map" title="Voir le cadastre" @click="openCadastre(result)" />
-            <v-btn density="compact" icon="mdi-alert" title="Voir les géorisques" @click="openGeorisques(result)" />
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+            <td class="text-center">
+              <v-btn density="compact" icon="mdi-map" title="Voir le cadastre" @click="openCadastre(item)" />
+              <v-btn density="compact" icon="mdi-alert" title="Voir les géorisques" @click="openGeorisques(item)" />
+            </td>
+          </tr>
+        </template>
+      </v-data-table>
+    </v-locale-provider>
   </v-container>
 </template>
 
@@ -162,7 +152,17 @@
   const selectedDateDPE = shallowRef(null)
   const selectedBuildingTypes = ref([])
   const buildingSurface = ref<number | null>(null)
-  const firstResearchDone = ref(false)
+
+  const resultsHeaders = ref([
+    { title: 'N° DPE', key: 'numero_dpe' },
+    { title: 'Date d\'établissement', key: 'date_etablissement_dpe' },
+    { title: 'Etiquette DPE', key: 'etiquette_dpe' },
+    { title: 'Surface habitable', key: 'surface_habitable_logement' },
+    { title: 'Type de bâtiment', key: 'type_batiment' },
+    { title: 'Année de construction', key: 'annee_construction' },
+    { title: 'Adresse', key: 'adresse' },
+    { title: 'Liens', key: 'liens', align: 'center', sortable: false },
+  ] as const)
 
   const dpeNotes = [
     {
@@ -201,7 +201,8 @@
       color: 'red-darken-4',
     },
   ]
-  const results = ref<DPEResult[]>([])
+
+  const results = ref<any[]>([])
 
   function getGoogleMapsLink (result: DPEResult) {
     return `https://www.google.com/maps/search/?api=1&query=${result.numero_voie_ban ?? ''}+${result.nom_rue_ban}+${result.code_postal_ban}+${result.nom_commune_ban}`
@@ -342,6 +343,5 @@
         results.value = computedResults
       })
     loading.value = false
-    firstResearchDone.value = true
   }
 </script>
