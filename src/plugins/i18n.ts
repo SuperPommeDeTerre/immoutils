@@ -1,21 +1,60 @@
 import { createI18n } from 'vue-i18n'
+import { en, fr } from 'vuetify/locale'
 
 const messages = {
   en: {
-    message: {
-      hello: 'hello world',
+    $vuetify: {
+      ...en,
     },
   },
-  ja: {
-    message: {
-      hello: 'こんにちは、世界',
+  fr: {
+    $vuetify: {
+      ...fr,
+    },
+    googleMapsLink: {
+      title: 'Voir sur Google Maps',
+      defaulttext: 'Voir sur Google Maps',
+    },
+    buildingtypes: {
+      house: 'Maison',
+      apartment: 'Appartement',
+      building: 'Immeuble',
+    },
+    searchbydpe: {
+      title: 'Recherche par DPE',
+      search: {
+        city: 'Commune',
+        buildingType: 'Type de bien',
+        dateDPE: 'Date d\'établissement du DPE',
+        dpeTag: 'Etiquette DPE',
+        buildingSurface: 'Surface habitable',
+        buildingSurfaceHint: 'Surface en m² (une recherche à +/- 10% sera effectuée)',
+        searchButton: 'Rechercher',
+      },
+      headers: {
+        dpeNumber: 'N° DPE',
+        dpeDate: 'Date d\'établissement',
+        dpeTag: 'Etiquette DPE',
+        habitableSurface: 'Surface habitable',
+        buildingType: 'Type de bâtiment',
+        buildingYear: 'Année de construction',
+        address: 'Adresse',
+        links: 'Liens',
+      },
+      results: {
+        viewDPE: 'Voir le DPE',
+        viewCadastre: 'Voir le cadastre',
+        viewGeorisques: 'Voir les géorisques',
+        buildingTypeUnknown: 'inconnu',
+      },
     },
   },
 }
 
 export default createI18n({
   legacy: false,
-  locale: 'en',
+  locale: 'fr',
   fallbackLocale: 'en',
+  globalInjection: true,
   messages,
 })

@@ -18,9 +18,9 @@
     "pinia": "^4.1",
     "proj4": "^2.22.0",
     "vue": "^3.5",
-    "vue-i18n": "^11.3",
+    "vue-i18n": "^11.4",
     "vue-router": "^5.0",
-    "vuetify": "^4.0"
+    "vuetify": "^4.3"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0",
@@ -34,7 +34,7 @@
     "sass-embedded": "^1.98",
     "typescript": "npm:typescript-native-bridge@6.0.3-bridge.19.tsgo.7.0.2",
     "unplugin-fonts": "^2.1",
-    "vite": "^8.0",
+    "vite": "^8.3",
     "vite-plugin-vuetify": "^2.1",
     "vue-tsc": "^3.2"
   },

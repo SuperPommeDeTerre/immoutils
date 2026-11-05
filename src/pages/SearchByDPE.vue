@@ -1,12 +1,12 @@
 <template>
   <v-container fluid>
-    <h1>Rechercher par DPE</h1>
+    <h1>{{ t('searchbydpe.title') }}</h1>
 
     <v-form validate-on="submit lazy" @submit="search" @submit.prevent="validateCriterias">
       <v-container fluid>
         <v-row>
           <v-col cols="6">
-            <v-text-field v-model="selectedCommune" label="Commune" />
+            <v-text-field v-model="selectedCommune" :label="t('searchbydpe.search.city')" />
           </v-col>
 
           <v-col cols="6">
@@ -14,8 +14,10 @@
               v-model="selectedBuildingTypes"
               chips
               clearable
-              :items="['maison','appartement','immeuble']"
-              label="Type de bien"
+              :item-title="item => getBuildingTypeDisplayString(item)"
+              :item-value="item => item"
+              :items="Object.values(DpeBuildingType)"
+              :label="t('searchbydpe.search.buildingType')"
               multiple
             />
           </v-col>
@@ -23,19 +25,17 @@
 
         <v-row>
           <v-col cols="4">
-            <v-locale-provider locale="fr">
-              <v-date-input
-                v-model="selectedDateDPE"
-                first-day-of-week="1"
-                input-format="dd/mm/yyyy"
-                label="Date d'établissement du DPE"
-                :max="new Date().toISOString().split('T')[0]"
-                min="2021-01-01"
-                multiple="range"
-                prepend-icon=""
-                prepend-inner-icon="$calendar"
-              />
-            </v-locale-provider>
+            <v-date-input
+              v-model="selectedDateDPE"
+              first-day-of-week="1"
+              input-format="dd/mm/yyyy"
+              :label="t('searchbydpe.search.dateDPE')"
+              :max="new Date().toISOString().split('T')[0]"
+              min="2021-01-01"
+              multiple="range"
+              prepend-icon=""
+              prepend-inner-icon="$calendar"
+            />
           </v-col>
 
           <v-col cols="4">
@@ -46,7 +46,7 @@
               item-title="label"
               item-value="value"
               :items="dpeNotes"
-              label="Etiquette DPE"
+              :label="t('searchbydpe.search.dpeTag')"
               multiple
             >
               <template #item="{ props: dpeNoteProps, item }">
@@ -60,91 +60,82 @@
               v-model="buildingSurface"
               clearable
               control-variant="hidden"
-              hint="Surface en m² (une recherche à +/- 10% sera effectuée)"
-              label="Surface habitable"
+              :hint="t('searchbydpe.search.buildingSurfaceHint')"
+              :label="t('searchbydpe.search.buildingSurface')"
               prepend-inner-icon="mdi-ruler-square"
             />
           </v-col>
         </v-row>
       </v-container>
 
-      <v-btn block class="mt-2" prepend-icon="mdi-magnify" type="submit">Rechercher</v-btn>
+      <v-btn block class="mt-2" prepend-icon="mdi-magnify" type="submit">{{ t('searchbydpe.search.searchButton') }}</v-btn>
     </v-form>
   </v-container>
 
   <v-container fluid>
-    <v-locale-provider locale="fr">
-      <v-data-table
-        density="compact"
-        fixed-header
-        :headers="resultsHeaders"
-        :items="results"
-        :items-per-page="100"
-        :loading="loading"
-        sort-asc-icon="mdi-sort-ascending"
-        :sort-by="[{ key: 'date_etablissement_dpe', order: 'asc' }]"
-        sort-desc-icon="mdi-sort-descending"
-        sort-icon="mdi-swap-vertical"
-      >
-        <template #loading>
-          <v-skeleton-loader type="table-row@10" />
-        </template>
+    <v-data-table
+      v-model:sort-by="resultsSortBy"
+      density="compact"
+      fixed-header
+      :headers="resultsHeaders"
+      :items="results"
+      :items-per-page="100"
+      :loading="loading"
+      sort-asc-icon="mdi-sort-ascending"
+      sort-desc-icon="mdi-sort-descending"
+      sort-icon="mdi-swap-vertical"
+    >
+      <template #loading>
+        <v-skeleton-loader type="table-row@10" />
+      </template>
 
-        <template #item="{ item }">
-          <tr>
-            <td><a :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.numero_dpe}`" target="_blank" title="Voir le DPE">{{ item.numero_dpe }}</a></td>
-            <td>{{ new Date(item.date_etablissement_dpe).toLocaleDateString() }}</td>
+      <template #item="{ item }">
+        <tr>
+          <td><a :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a></td>
+          <td>{{ item.dpe_date.toLocaleDateString() }}</td>
 
-            <td>
-              <template v-for="dpeNote in dpeNotes">
-                <v-chip
-                  v-if="item.etiquette_dpe==dpeNote.value"
-                  :key="dpeNote.value"
-                  :color="dpeNote.color"
-                  label
-                  variant="flat"
-                >{{ dpeNote.value }}</v-chip>
-              </template>
-            </td>
+          <td>
+            <template v-for="dpeNote in dpeNotes">
+              <v-chip
+                v-if="item.dpe_tag as DpeTag === dpeNote.value as DpeTag"
+                :key="dpeNote.label"
+                :color="dpeNote.color"
+                label
+                variant="flat"
+              >{{ dpeNote.label }}</v-chip>
+            </template>
+          </td>
 
-            <td>{{ new Intl.NumberFormat("fr-FR", { style: "decimal" }).format(item.surface_habitable_logement) }}</td>
-            <td>{{ capitalize(item.type_batiment) }}</td>
-            <td>{{ item.annee_construction }}</td>
-            <td><a :href="getGoogleMapsLink(item)" target="_blank" title="Voir sur Google Maps">{{ item.numero_voie_ban??'' }} {{ item.nom_rue_ban }}, {{ item.code_postal_ban }} {{ item.nom_commune_ban }}</a></td>
+          <td>
+            <template v-if="item.habitable_surface">
+              {{ new Intl.NumberFormat("fr-FR", { style: "decimal" }).format(item.habitable_surface) }} m²
+            </template>
+          </td>
 
-            <td class="text-center">
-              <v-btn density="compact" icon="mdi-map" title="Voir le cadastre" @click="openCadastre(item)" />
-              <v-btn density="compact" icon="mdi-alert" title="Voir les géorisques" @click="openGeorisques(item)" />
-            </td>
-          </tr>
-        </template>
-      </v-data-table>
-    </v-locale-provider>
+          <td>{{ capitalize(getBuildingTypeDisplayString(item.building_type)) }}</td>
+          <td>{{ item.building_year }}</td>
+          <td><GoogleMapsLink :query="getFullAddress(item)" :text="getFullAddress(item)" /></td>
+
+          <td class="text-center">
+            <v-btn density="compact" icon="mdi-map" :title="t('searchbydpe.results.viewCadastre')" @click="openCadastre(item)" />
+            <v-btn density="compact" icon="mdi-alert" :title="t('searchbydpe.results.viewGeorisques')" @click="openGeorisques(item)" />
+          </td>
+        </tr>
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 
 <script lang="ts" setup>
-  import proj4 from 'proj4'
+  import type { SortItem } from 'vuetify/lib/components/VDataTable/composables/sort.mjs'
   import { capitalize, ref, shallowRef } from 'vue'
+  import { useI18n } from 'vue-i18n'
+  import GoogleMapsLink from '@/components/GoogleMapsLink.vue'
+  import { DpeBuildingType, type DpeResult, DpeTag, useApiDpeStore } from '@/stores/api-dpe'
+  import { useApiGeocodageStore } from '@/stores/api-geocodage'
 
-  type DPEResult = {
-    numero_dpe: string
-    numero_voie_ban: string
-    nom_rue_ban: string
-    nom_commune_ban: string
-    code_postal_ban: string
-    code_insee_ban: string
-    annee_construction: number
-    coordonnee_cartographique_x_ban: number
-    coordonnee_cartographique_y_ban: number
-    longitude: number
-    latitude: number
-    type_batiment: string
-    date_etablissement_dpe: string
-    surface_habitable_logement: number
-    etiquette_dpe: string
-    _score: number
-  }
+  const { t } = useI18n()
+
   const loading = ref(false)
 
   const selectedNoteDPE = ref([])
@@ -153,91 +144,97 @@
   const selectedBuildingTypes = ref([])
   const buildingSurface = ref<number | null>(null)
 
+  const dpeApiStore = useApiDpeStore()
+  const geocodageApiStore = useApiGeocodageStore()
+
+  const resultsSortBy = ref<SortItem[]>([{ key: 'dpe_date', order: 'asc' }])
+
   const resultsHeaders = ref([
-    { title: 'N° DPE', key: 'numero_dpe' },
-    { title: 'Date d\'établissement', key: 'date_etablissement_dpe' },
-    { title: 'Etiquette DPE', key: 'etiquette_dpe' },
-    { title: 'Surface habitable', key: 'surface_habitable_logement' },
-    { title: 'Type de bâtiment', key: 'type_batiment' },
-    { title: 'Année de construction', key: 'annee_construction' },
-    { title: 'Adresse', key: 'adresse' },
-    { title: 'Liens', key: 'liens', align: 'center', sortable: false },
+    { title: t('searchbydpe.headers.dpeNumber'), key: 'dpe_number' },
+    { title: t('searchbydpe.headers.dpeDate'), key: 'dpe_date' },
+    { title: t('searchbydpe.headers.dpeTag'), key: 'dpe_tag' },
+    { title: t('searchbydpe.headers.habitableSurface'), key: 'habitable_surface' },
+    { title: t('searchbydpe.headers.buildingType'), key: 'building_type' },
+    { title: t('searchbydpe.headers.buildingYear'), key: 'building_year' },
+    { title: t('searchbydpe.headers.address'), key: 'address', sortable: false },
+    { title: t('searchbydpe.headers.links'), key: 'liens', align: 'center', sortable: false },
   ] as const)
 
-  const dpeNotes = [
-    {
-      label: 'A',
-      value: 'A',
-      color: 'green-darken-4',
-    },
-    {
-      label: 'B',
-      value: 'B',
-      color: 'green-darken-1',
-    },
-    {
-      label: 'C',
-      value: 'C',
-      color: 'light-green-darken-1',
-    },
-    {
-      label: 'D',
-      value: 'D',
-      color: 'yellow-accent-3',
-    },
-    {
-      label: 'E',
-      value: 'E',
-      color: 'orange-accent-3',
-    },
-    {
-      label: 'F',
-      value: 'F',
-      color: 'deep-orange-darken-3',
-    },
-    {
-      label: 'G',
-      value: 'G',
-      color: 'red-darken-4',
-    },
-  ]
-
-  const results = ref<any[]>([])
-
-  function getGoogleMapsLink (result: DPEResult) {
-    return `https://www.google.com/maps/search/?api=1&query=${result.numero_voie_ban ?? ''}+${result.nom_rue_ban}+${result.code_postal_ban}+${result.nom_commune_ban}`
-  }
-
-  function openGeorisques (result: DPEResult) {
-    let georisquesLink = 'https://www.georisques.gouv.fr/mes-risques/connaitre-les-risques-pres-de-chez-moi/rapport2?form-adresse=true&isCadastre=false'
-    georisquesLink += `&city=${result.nom_commune_ban}&type=adresse&typeForm=adresse`
-    georisquesLink += `&codeInsee=${result.code_insee_ban}`
-    if (result.longitude != 0 && result.latitude != 0) {
-      georisquesLink += `&lon=${result.longitude}&lat=${result.latitude}&longitude=${result.longitude}&latitude=${result.latitude}`
+  const dpeNotes = (Object.keys(DpeTag) as Array<keyof typeof DpeTag>).map(dpeTag => {
+    return {
+      label: dpeTag as string,
+      value: dpeTag,
+      color: (() => {
+        switch (dpeTag) {
+          case DpeTag.A: { return 'green-darken-4' }
+          case DpeTag.B: { return 'green-darken-1' }
+          case DpeTag.C: { return 'light-green-darken-1' }
+          case DpeTag.D: { return 'yellow-accent-3' }
+          case DpeTag.E: { return 'orange-accent-3' }
+          case DpeTag.F: { return 'deep-orange-darken-3' }
+          case DpeTag.G: { return 'red-darken-4' }
+        }
+      })(),
     }
-    georisquesLink += `&commune=${result.nom_commune_ban}&adresse=${result.numero_voie_ban ?? ''}+${result.nom_rue_ban}%2C+${result.code_postal_ban}+${result.nom_commune_ban}`
-    window.open(georisquesLink, '_blank')
+  })
+
+  const results = ref<DpeResult[]>([])
+
+  function getBuildingTypeDisplayString (buildingType: DpeBuildingType | string | null): string {
+    if (typeof buildingType === 'string' && Object.values(DpeBuildingType).includes(buildingType as DpeBuildingType)) {
+      buildingType = buildingType as DpeBuildingType
+    }
+    if (typeof buildingType === 'string') {
+      switch (buildingType) {
+        case DpeBuildingType.HOUSE: { return t('buildingtypes.house') }
+        case DpeBuildingType.APARTMENT: { return t('buildingtypes.apartment') }
+        case DpeBuildingType.BUILDING: { return t('buildingtypes.building') }
+      }
+    }
+    return t('searchbydpe.results.buildingTypeUnknown')
+  }
+
+  function getFullAddress (result: DpeResult) {
+    return `${result.street_number_ban ?? ''} ${result.street_name_ban}, ${result.postal_code_ban} ${result.city_name_ban}`
+  }
+
+  function openGeorisques (result: DpeResult) {
+    const georisqueURLParams = new URLSearchParams({
+      'form-adresse': 'true',
+      'isCadastre': 'false',
+      'city': result.city_name_ban ?? '',
+      'type': 'adresse',
+      'typeForm': 'adresse',
+      'codeInsee': result.insee_code_ban ?? '',
+      'lon': (result.longitude ?? 0).toString(),
+      'lat': (result.latitude ?? 0).toString(),
+      'longitude': (result.longitude ?? 0).toString(),
+      'latitude': (result.latitude ?? 0).toString(),
+      'commune': result.city_name_ban ?? '',
+      'adresse': `${result.street_number_ban ?? ''} ${result.street_name_ban}, ${result.postal_code_ban} ${result.city_name_ban ?? ''}`,
+    })
+    window.open(`https://www.georisques.gouv.fr/mes-risques/connaitre-les-risques-pres-de-chez-moi/rapport2?${georisqueURLParams.toString()}`, '_blank')
     return false
   }
 
-  async function openCadastre (result: DPEResult) {
-    window.open(await getCadastreLink(result), '_blank')
-    return false
-  }
-
-  async function getCadastreLink (result: DPEResult) {
+  async function openCadastre (result: DpeResult) {
     // Get closest parcel number from coordinates
-    const departmentCode = result.code_insee_ban.slice(0, 2)
-    const municipalityCode = result.code_insee_ban.slice(2)
+    const departmentCode = result.insee_code_ban?.slice(0, 2)
+    const municipalityCode = result.insee_code_ban?.slice(2)
+    const zoomLevel = 18
 
-    const parcelId = await fetch(`https://data.geopf.fr/geocodage/reverse?searchgeom=%7B%22type%22%3A%22Circle%22%2C%22coordinates%22%3A%5B${result.longitude}%2C${result.latitude}%5D%2C%22radius%22%3A1%7D&index=parcel&limit=10&returntruegeometry=false&departmentcode=${departmentCode}&municipalitycode=${municipalityCode}`)
-      .then(data => data.json())
-      .then(data => data.features[0]?.properties?.id)
-    let cadastreLink = `https://cadastre.data.gouv.fr/map?style=ortho&parcelleId=${parcelId}#18/`
+    const parcelId = await geocodageApiStore.getCadastreParcelId({
+      longitude: result.longitude ?? 0,
+      latitude: result.latitude ?? 0,
+      departmentCode: departmentCode ?? '',
+      municipalityCode: municipalityCode ?? '',
+    })
+    let cadastreLink = `https://cadastre.data.gouv.fr/map?style=ortho&parcelleId=${parcelId}#${zoomLevel}/`
     if (result.longitude != 0 && result.latitude != 0) {
       cadastreLink += `${result.latitude}/${result.longitude}`
     }
-    return cadastreLink
+    window.open(cadastreLink, '_blank')
+    return false
   }
 
   function validateCriterias (e: Event) {
@@ -247,101 +244,15 @@
   async function search () {
     loading.value = true
     results.value = []
-    const searchParams = new URLSearchParams()
-    // if (selectedCommune.value) searchParams.append('q', selectedCommune.value)
-    if (selectedCommune.value) searchParams.append('nom_commune_brut_search', selectedCommune.value)
-    // Only one date selected
-    if (selectedDateDPE.value && selectedDateDPE.value[0] && !selectedDateDPE.value[1]) {
-      const dpeDate = new Date(selectedDateDPE.value[0])
-      const dpeDateFormatted = `${dpeDate.getFullYear()}-${(dpeDate.getMonth() + 1).toString().padStart(2, '0')}-${dpeDate.getDate().toString().padStart(2, '0')}`
-      searchParams.append('date_etablissement_dpe_eq', dpeDateFormatted)
-    } else {
-      if (selectedDateDPE.value && selectedDateDPE.value[0]) {
-        const startDate = new Date(selectedDateDPE.value[0])
-        const startDateFormatted = `${startDate.getFullYear()}-${(startDate.getMonth() + 1).toString().padStart(2, '0')}-${startDate.getDate().toString().padStart(2, '0')}`
-        searchParams.append('date_etablissement_dpe_gte', startDateFormatted)
-      }
-      if (selectedDateDPE.value && selectedDateDPE.value[1]) {
-        const endDate = new Date(selectedDateDPE.value[1])
-        const endDateFormatted = `${endDate.getFullYear()}-${(endDate.getMonth() + 1).toString().padStart(2, '0')}-${endDate.getDate().toString().padStart(2, '0')}`
-        searchParams.append('date_etablissement_dpe_lte', endDateFormatted)
-      }
-    }
-    if (selectedBuildingTypes.value && selectedBuildingTypes.value.length > 0) searchParams.append('type_batiment_in', selectedBuildingTypes.value.join(','))
-    if (buildingSurface.value) {
-      const lowerBound = buildingSurface.value - (buildingSurface.value * 0.1)
-      const upperBound = buildingSurface.value + (buildingSurface.value * 0.1)
-      searchParams.append('surface_habitable_logement_gte', lowerBound.toString())
-      searchParams.append('surface_habitable_logement_lte', upperBound.toString())
-    }
-    if (selectedNoteDPE.value && selectedNoteDPE.value.length > 0) searchParams.append('etiquette_dpe_in', selectedNoteDPE.value.join(','))
-    searchParams.append('select', [
-      'nom_commune_brut',
-      'adresse_brut',
-      'code_postal_brut',
-      'adresse_complete_brut',
-      'date_etablissement_dpe',
-      'numero_dpe',
-      'etiquette_dpe',
-      'type_batiment',
-      'annee_construction',
-      'typologie_logement',
-      'numero_voie_ban',
-      'nom_rue_ban',
-      'nom_commune_ban',
-      'code_postal_ban',
-      'code_insee_ban',
-      'coordonnee_cartographique_x_ban',
-      'coordonnee_cartographique_y_ban',
-      'surface_habitable_logement'].join(','))
-    searchParams.append('sort', 'date_etablissement_dpe')
-    searchParams.append('size', '500')
-    await fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
-      .then(data => data.json())
-      .then(async data => {
-        const computedResults = []
-        for (const result of data.results) {
-          const individualResult = { ...result }
-          // Try to complete the address using the raw address if available
-          if (!result.nom_rue_ban && result.adresse_brut) {
-            individualResult.nom_rue_ban = result.adresse_brut
-          }
-          if (!result.code_postal_ban && result.code_postal_brut) {
-            individualResult.code_postal_ban = result.code_postal_brut
-          }
-          if (!result.nom_commune_ban && result.nom_commune_brut) {
-            individualResult.nom_commune_ban = result.nom_commune_brut
-          }
-          // Convert X/Y (referentiel epsg 2154 lambert 93) to latitude/longitude (WGS84)
-          if (!result.coordonnee_cartographique_x_ban && !result.coordonnee_cartographique_y_ban && result.adresse_complete_brut) {
-            await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(result.adresse_complete_brut)}`)
-              .then(response => response.json())
-              .then(data => {
-                if (data.features && data.features.length > 0) {
-                  const coords = data.features[0].geometry.coordinates
-                  individualResult.longitude = coords[0]
-                  individualResult.latitude = coords[1]
-                  individualResult.coordonnee_cartographique_x_ban = data.features[0].properties.x
-                  individualResult.coordonnee_cartographique_y_ban = data.features[0].properties.y
-                  individualResult.code_insee_ban = data.features[0].properties.citycode
-                }
-              })
-          } else {
-            const x = result.coordonnee_cartographique_x_ban
-            const y = result.coordonnee_cartographique_y_ban
-            if (!x || !y) {
-              individualResult.longitude = 0
-              individualResult.latitude = 0
-            } else {
-              const gpsCoordinates = proj4('+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +units=m +no_defs +type=crs', 'EPSG:4326').forward([x, y])
-              individualResult.longitude = gpsCoordinates[0]
-              individualResult.latitude = gpsCoordinates[1]
-            }
-          }
-          computedResults.push(individualResult)
-        }
-        results.value = computedResults
-      })
+    await dpeApiStore.fetchDpeData({
+      city_name: selectedCommune.value ?? null,
+      tag: selectedNoteDPE.value ?? null,
+      surface: buildingSurface.value ?? null,
+      from_date: selectedDateDPE.value && selectedDateDPE.value[0] ? new Date(selectedDateDPE.value[0]) : null,
+      to_date: selectedDateDPE.value && selectedDateDPE.value[1] ? new Date(selectedDateDPE.value[1]) : null,
+      building_type: selectedBuildingTypes.value ?? null,
+    })
+    results.value = dpeApiStore.dpe_established
     loading.value = false
   }
 </script>
