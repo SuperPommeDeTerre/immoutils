@@ -6,6 +6,43 @@ const messages = {
     $vuetify: {
       ...en,
     },
+    googleMapsLink: {
+      title: 'View on Google Maps',
+      defaulttext: 'View on Google Maps',
+    },
+    buildingtypes: {
+      house: 'House',
+      apartment: 'Apartment',
+      building: 'Building',
+    },
+    searchbydpe: {
+      title: 'Search by Energetical Performance Diagnostic (French DPE)',
+      search: {
+        city: 'City',
+        buildingType: 'Building type',
+        dateDPE: 'EPD issue date',
+        dpeTag: 'EPD tag',
+        buildingSurface: 'Habitable surface',
+        buildingSurfaceHint: 'Surface in m² (a search within +/- 10% will be performed)',
+        searchButton: 'Search',
+      },
+      headers: {
+        dpeNumber: 'EPD No.',
+        dpeDate: 'Issuing date',
+        dpeTag: 'EPD tag',
+        habitableSurface: 'Habitable surface',
+        buildingType: 'Building type',
+        buildingYear: 'Year of construction',
+        address: 'Address',
+        links: 'Links',
+      },
+      results: {
+        viewDPE: 'View DPE',
+        viewCadastre: 'View cadastre',
+        viewGeorisques: 'View georisques',
+        buildingTypeUnknown: 'unknown',
+      },
+    },
   },
   fr: {
     $vuetify: {
