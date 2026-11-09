@@ -46,6 +46,21 @@ function dateToAPIString (date: Date): string {
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
 }
 
+function getDiagnosticsDateRangeParams (from_date?: Date | null, to_date?: Date | null, prefix = 'date_etablissement_dpe', eq_suffix = 'eq', lte_suffix = 'lte', gte_suffix = 'gte'): Record<string, string> {
+  const queryParams: Record<string, string> = {}
+  if (from_date && !to_date) {
+    queryParams[`${prefix}_${eq_suffix}`] = dateToAPIString(from_date)
+  } else {
+    if (from_date) {
+      queryParams[`${prefix}_${gte_suffix}`] = dateToAPIString(from_date)
+    }
+    if (to_date) {
+      queryParams[`${prefix}_${lte_suffix}`] = dateToAPIString(to_date)
+    }
+  }
+  return queryParams
+}
+
 async function searchCriteriasToURLSearchParamsForAPIBefore2021_07_01 (criterias: DpeApiSearchCriterias): Promise<URLSearchParams> {
   const searchParams = new URLSearchParams()
   if (criterias.city_name) {
@@ -64,15 +79,8 @@ async function searchCriteriasToURLSearchParamsForAPIBefore2021_07_01 (criterias
     const inseeCodes = await Promise.all(postalCodesPromises)
     searchParams.append('code_insee_commune_actualise_in', inseeCodes.flat().join(','))
   }
-  if (criterias.from_date && !criterias.to_date) {
-    searchParams.append('date_etablissement_dpe_eq', dateToAPIString(criterias.from_date))
-  } else {
-    if (criterias.from_date) {
-      searchParams.append('date_etablissement_dpe_gte', dateToAPIString(criterias.from_date))
-    }
-    if (criterias.to_date) {
-      searchParams.append('date_etablissement_dpe_lte', dateToAPIString(criterias.to_date))
-    }
+  for (const [paramName, paramValue] of Object.entries(getDiagnosticsDateRangeParams(criterias.from_date, criterias.to_date))) {
+    searchParams.append(paramName, paramValue)
   }
   if (criterias.tag && criterias.tag.length > 0) {
     searchParams.append('classe_consommation_energie_in', criterias.tag.join(','))
@@ -110,15 +118,8 @@ function searchCriteriasToURLSearchParamsForAPIAfter2021_07_01 (criterias: DpeAp
   if (criterias.city_postal_codes && criterias.city_postal_codes.length > 0) {
     searchParams.append('code_postal_brut_in', criterias.city_postal_codes.join(','))
   }
-  if (criterias.from_date && !criterias.to_date) {
-    searchParams.append('date_etablissement_dpe_eq', dateToAPIString(criterias.from_date))
-  } else {
-    if (criterias.from_date) {
-      searchParams.append('date_etablissement_dpe_gte', dateToAPIString(criterias.from_date))
-    }
-    if (criterias.to_date) {
-      searchParams.append('date_etablissement_dpe_lte', dateToAPIString(criterias.to_date))
-    }
+  for (const [paramName, paramValue] of Object.entries(getDiagnosticsDateRangeParams(criterias.from_date, criterias.to_date))) {
+    searchParams.append(paramName, paramValue)
   }
   if (criterias.building_type && criterias.building_type.length > 0) {
     searchParams.append('type_batiment_in', criterias.building_type.join(','))
@@ -316,7 +317,7 @@ export const useApiDpeStore = defineStore('api-dpe', {
       }
       if (criterias.to_date && criterias.to_date >= dpeRepositoryChangeDate) {
         console.log('Fetching data from API after 2021-07-01')
-        const searchParams = await searchCriteriasToURLSearchParamsForAPIAfter2021_07_01(criterias)
+        const searchParams = searchCriteriasToURLSearchParamsForAPIAfter2021_07_01(criterias)
         // https://data.ademe.fr/data-fair/api/v1/datasets/dpe-france/lines
         promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
           .then(data => data.json())

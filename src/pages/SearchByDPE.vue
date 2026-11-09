@@ -46,6 +46,7 @@
             <v-date-input
               v-model="selectedDateDPE"
               first-day-of-week="1"
+              :hint="t('searchbydpe.search.dateDPEHint')"
               input-format="dd/mm/yyyy"
               :label="t('searchbydpe.search.dateDPE')"
               :max="new Date().toISOString().split('T')[0]"

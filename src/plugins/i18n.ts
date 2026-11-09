@@ -70,6 +70,7 @@ const messages = {
         city: 'Commune',
         buildingType: 'Type de bien',
         dateDPE: 'Date d\'établissement du DPE',
+        dateDPEHint: 'Attention : Les recherches avant le 01/07/2021 peuvent être plus longues',
         cityPostalCodes: 'Codes postaux',
         dpeTag: 'Etiquette DPE',
         buildingSurface: 'Surface habitable',
