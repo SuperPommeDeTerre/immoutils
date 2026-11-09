@@ -13,6 +13,7 @@ export enum DpeTag {
   E = 'E',
   F = 'F',
   G = 'G',
+  N = 'N',
 }
 
 export enum DpeBuildingType {
@@ -33,6 +34,7 @@ export interface DpeResult {
   city_name_ban?: string | null
   postal_code_ban?: string | null
   insee_code_ban?: string | null
+  full_address: string
   building_year?: number | null
   building_type: DpeBuildingType | string | null
   habitable_surface?: number | null
@@ -44,10 +46,69 @@ function dateToAPIString (date: Date): string {
   return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
 }
 
-function searchCriteriasToURLSearchParams (criterias: DpeApiSearchCriterias): URLSearchParams {
+async function searchCriteriasToURLSearchParamsForAPIBefore2021_07_01 (criterias: DpeApiSearchCriterias): Promise<URLSearchParams> {
+  const searchParams = new URLSearchParams()
+  if (criterias.city_name) {
+    searchParams.append('geo_adresse_search', criterias.city_name)
+  }
+  if (criterias.city_postal_codes && criterias.city_postal_codes.length > 0) {
+    // Gets the INSEE codes from the postal codes
+    const postalCodesPromises = []
+    for (const postalCode of criterias.city_postal_codes) {
+      postalCodesPromises.push(
+        fetch(`https://geo.api.gouv.fr/communes?codePostal=${postalCode}`)
+          .then(response => response.json())
+          .then(data => data.map((commune: any) => commune.code)),
+      )
+    }
+    const inseeCodes = await Promise.all(postalCodesPromises)
+    searchParams.append('code_insee_commune_actualise_in', inseeCodes.flat().join(','))
+  }
+  if (criterias.from_date && !criterias.to_date) {
+    searchParams.append('date_etablissement_dpe_eq', dateToAPIString(criterias.from_date))
+  } else {
+    if (criterias.from_date) {
+      searchParams.append('date_etablissement_dpe_gte', dateToAPIString(criterias.from_date))
+    }
+    if (criterias.to_date) {
+      searchParams.append('date_etablissement_dpe_lte', dateToAPIString(criterias.to_date))
+    }
+  }
+  if (criterias.tag && criterias.tag.length > 0) {
+    searchParams.append('classe_consommation_energie_in', criterias.tag.join(','))
+  }
+  if (criterias.building_type && criterias.building_type.length > 0) {
+    const buildingTypeCriteria = criterias.building_type.map(buildingType => getBuildingTypeStringForAPIBefore2021_07_01(getBuildingTypeFromString(buildingType)))
+    searchParams.append('tr002_type_batiment_description_in', buildingTypeCriteria.join(','))
+  }
+  if (criterias.surface) {
+    const lowerBound = criterias.surface - (criterias.surface * 0.1)
+    const upperBound = criterias.surface + (criterias.surface * 0.1)
+    searchParams.append('surface_thermique_lot_gte', lowerBound.toString())
+    searchParams.append('surface_thermique_lot_lte', upperBound.toString())
+  }
+  searchParams.append('select', [
+    'numero_dpe',
+    'date_etablissement_dpe',
+    'classe_consommation_energie',
+    'annee_construction',
+    'surface_thermique_lot',
+    'latitude',
+    'longitude',
+    'tv016_departement_code',
+    'tr002_type_batiment_description',
+    'code_insee_commune_actualise',
+    'geo_adresse'].join(','))
+  return searchParams
+}
+
+function searchCriteriasToURLSearchParamsForAPIAfter2021_07_01 (criterias: DpeApiSearchCriterias): URLSearchParams {
   const searchParams = new URLSearchParams()
   if (criterias.city_name) {
     searchParams.append('nom_commune_brut_search', criterias.city_name)
+  }
+  if (criterias.city_postal_codes && criterias.city_postal_codes.length > 0) {
+    searchParams.append('code_postal_brut_in', criterias.city_postal_codes.join(','))
   }
   if (criterias.from_date && !criterias.to_date) {
     searchParams.append('date_etablissement_dpe_eq', dateToAPIString(criterias.from_date))
@@ -95,7 +156,25 @@ function searchCriteriasToURLSearchParams (criterias: DpeApiSearchCriterias): UR
   return searchParams
 }
 
-function getBuildingTypeFromString (buildingType: string): DpeBuildingType | string | null {
+function getBuildingTypeStringForAPIBefore2021_07_01 (buildingType: DpeBuildingType | string): string | null {
+  switch (buildingType) {
+    case DpeBuildingType.HOUSE: { return 'Maison Individuelle' }
+    case DpeBuildingType.APARTMENT: { return 'Logement' }
+    case DpeBuildingType.BUILDING: { return 'Bâtiment collectif à usage principal d\'habitation' }
+    default: { return null }
+  }
+}
+
+function getBuildingTypeFromStringBefore2021_07_01 (buildingType: string): DpeBuildingType | string {
+  switch (buildingType) {
+    case 'Maison Individuelle': { return DpeBuildingType.HOUSE }
+    case 'Logement': { return DpeBuildingType.APARTMENT }
+    case 'Bâtiment collectif à usage principal d\'habitation': { return DpeBuildingType.BUILDING }
+    default: { return buildingType }
+  }
+}
+
+function getBuildingTypeFromString (buildingType: string): DpeBuildingType | string {
   switch (buildingType) {
     case 'maison': { return DpeBuildingType.HOUSE }
     case 'appartement': { return DpeBuildingType.APARTMENT }
@@ -103,8 +182,52 @@ function getBuildingTypeFromString (buildingType: string): DpeBuildingType | str
     default: { return buildingType }
   }
 }
+
+function computeFullAddress (dpe_result: DpeResult): string {
+  let fullAddress = ''
+  if (dpe_result.street_number_ban) {
+    fullAddress = `${dpe_result.street_number_ban}`
+  }
+  if (dpe_result.street_name_ban) {
+    fullAddress += `${fullAddress.length > 0 ? ' ' : ''}${dpe_result.street_name_ban}`
+  }
+  if (dpe_result.postal_code_ban || dpe_result.city_name_ban) {
+    fullAddress += `${fullAddress.length > 0 ? ', ' : ''}${dpe_result.postal_code_ban ?? ''}`
+    fullAddress += `${fullAddress.length > 0 ? ' ' : ''}${dpe_result.city_name_ban ?? ''}`
+  }
+  return fullAddress
+}
+
+async function rawApiResultToDpeResultBefore2021_07_01 (raw_result: any): Promise<DpeResult> {
+  const returned_result: DpeResult = {
+    dpe_number: raw_result.numero_dpe,
+    dpe_date: new Date(raw_result.date_etablissement_dpe),
+    dpe_tag: raw_result.classe_consommation_energie as DpeTag,
+    latitude: raw_result.latitude,
+    longitude: raw_result.longitude,
+    habitable_surface: raw_result.surface_thermique_lot,
+    building_year: raw_result.annee_construction,
+    full_address: raw_result.geo_adresse,
+    insee_code_ban: raw_result.code_insee_commune_actualise,
+    building_type: getBuildingTypeFromStringBefore2021_07_01(raw_result.tr002_type_batiment_description),
+  }
+  const searchQueryParams = new URLSearchParams({ q: raw_result.geo_adresse })
+  await fetch(`https://api-adresse.data.gouv.fr/search/?${searchQueryParams.toString()}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.features && data.features.length > 0) {
+        const firstResult = data.features[0].properties
+        returned_result.street_name_ban = firstResult.street ?? ''
+        returned_result.street_number_ban = firstResult.housenumber ?? ''
+        returned_result.postal_code_ban = firstResult.postcode ?? ''
+        returned_result.city_name_ban = firstResult.city ?? ''
+      }
+    })
+  return returned_result
+}
+
 async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
-  const returned_result = {
+  const returned_result: DpeResult = {
     dpe_number: raw_result.numero_dpe,
     dpe_date: new Date(raw_result.date_etablissement_dpe),
     dpe_tag: raw_result.etiquette_dpe as DpeTag,
@@ -113,6 +236,7 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
     city_name_ban: raw_result.nom_commune_ban,
     postal_code_ban: raw_result.code_postal_ban,
     insee_code_ban: raw_result.code_insee_ban,
+    full_address: '',
     building_year: raw_result.annee_construction,
     building_type: getBuildingTypeFromString(raw_result.type_batiment),
     habitable_surface: raw_result.surface_habitable_logement,
@@ -129,6 +253,8 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
   if (!returned_result.city_name_ban && raw_result.nom_commune_brut) {
     returned_result.city_name_ban = raw_result.nom_commune_brut
   }
+  // Compute the full address
+  returned_result.full_address = computeFullAddress(returned_result)
   // Convert X/Y (referentiel epsg 2154 lambert 93) to latitude/longitude (WGS84)
   if (!raw_result.coordonnee_cartographique_x_ban && !raw_result.coordonnee_cartographique_y_ban && raw_result.adresse_complete_brut) {
     // If no coordinates returned, then try to infer them from postal address
@@ -163,6 +289,7 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
  */
 export interface DpeApiSearchCriterias {
   city_name?: string | null
+  city_postal_codes?: number[] | null
   tag?: DpeTag[] | null
   surface?: number | null
   from_date?: Date | null
@@ -170,18 +297,34 @@ export interface DpeApiSearchCriterias {
   building_type?: string[] | null
 }
 
+const dpeRepositoryChangeDate = new Date('2021-07-01')
+
 export const useApiDpeStore = defineStore('api-dpe', {
   state: () => ({
     dpe_established: [] as DpeResult[],
   }),
   actions: {
     async fetchDpeData (criterias: DpeApiSearchCriterias) {
-      const searchParams = searchCriteriasToURLSearchParams(criterias)
-      await fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
-        .then(data => data.json())
-        .then(async data => {
-          useApiDpeStore().dpe_established = await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResult(raw_result)))
-        })
+      const promisesToWait: Promise<any>[] = []
+      // If start date or end date are before 2021-07-01, then, we need to fetch another API
+      if (criterias.from_date && criterias.from_date < dpeRepositoryChangeDate) {
+        console.log('Fetching data from API before 2021-07-01')
+        const searchParams = await searchCriteriasToURLSearchParamsForAPIBefore2021_07_01(criterias)
+        promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe-france/lines?${searchParams.toString()}`)
+          .then(data => data.json())
+          .then(async data => await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResultBefore2021_07_01(raw_result)))))
+      }
+      if (criterias.to_date && criterias.to_date >= dpeRepositoryChangeDate) {
+        console.log('Fetching data from API after 2021-07-01')
+        const searchParams = await searchCriteriasToURLSearchParamsForAPIAfter2021_07_01(criterias)
+        // https://data.ademe.fr/data-fair/api/v1/datasets/dpe-france/lines
+        promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
+          .then(data => data.json())
+          .then(async data => await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResult(raw_result)))))
+      }
+      const resultsFromAllAPI = await Promise.all(promisesToWait)
+      const mergedResults = resultsFromAllAPI.flat()
+      useApiDpeStore().dpe_established = mergedResults
     },
   },
 })

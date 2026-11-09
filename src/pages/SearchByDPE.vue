@@ -5,11 +5,29 @@
     <v-form validate-on="submit lazy" @submit="search" @submit.prevent="validateCriterias">
       <v-container fluid>
         <v-row>
-          <v-col cols="6">
-            <v-text-field v-model="selectedCommune" :label="t('searchbydpe.search.city')" />
+          <v-col cols="4">
+            <v-text-field
+              v-model="selectedCityName"
+              :label="t('searchbydpe.search.city')"
+            />
           </v-col>
 
-          <v-col cols="6">
+          <v-col cols="4">
+            <v-combobox
+              v-model="cityPostalCodes"
+              append-icon=""
+              chips
+              clearable
+              :label="t('searchbydpe.search.cityPostalCodes')"
+              multiple
+            >
+              <template #selection="{ item }">
+                <v-chip closable small>{{ item }}</v-chip>
+              </template>
+            </v-combobox>
+          </v-col>
+
+          <v-col cols="4">
             <v-select
               v-model="selectedBuildingTypes"
               chips
@@ -31,7 +49,7 @@
               input-format="dd/mm/yyyy"
               :label="t('searchbydpe.search.dateDPE')"
               :max="new Date().toISOString().split('T')[0]"
-              min="2021-01-01"
+              min="2013-01-01"
               multiple="range"
               prepend-icon=""
               prepend-inner-icon="$calendar"
@@ -74,10 +92,12 @@
 
   <v-container fluid>
     <v-data-table
+      v-if="firstSearchDone"
       v-model:sort-by="resultsSortBy"
       density="compact"
       fixed-header
       :headers="resultsHeaders"
+      :hover="true"
       :items="results"
       :items-per-page="100"
       :loading="loading"
@@ -114,11 +134,12 @@
 
           <td>{{ capitalize(getBuildingTypeDisplayString(item.building_type)) }}</td>
           <td>{{ item.building_year }}</td>
-          <td><GoogleMapsLink :query="getFullAddress(item)" :text="getFullAddress(item)" /></td>
+          <td><GoogleMapsLink :query="item.full_address" :text="item.full_address" /></td>
 
           <td class="text-center">
             <v-btn density="compact" icon="mdi-map" :title="t('searchbydpe.results.viewCadastre')" @click="openCadastre(item)" />
             <v-btn density="compact" icon="mdi-alert" :title="t('searchbydpe.results.viewGeorisques')" @click="openGeorisques(item)" />
+            <v-btn density="compact" icon="mdi-currency-eur" :title="t('searchbydpe.results.viewPricesMap')" @click="openPricesMap(item)" />
           </td>
         </tr>
       </template>
@@ -136,11 +157,15 @@
 
   const { t } = useI18n()
 
+  const firstSearchDone = ref(false)
   const loading = ref(false)
 
+  const today = new Date()
+  const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const selectedCityName = ref('')
+  const cityPostalCodes = ref<number[]>([])
   const selectedNoteDPE = ref([])
-  const selectedCommune = ref('')
-  const selectedDateDPE = shallowRef(null)
+  const selectedDateDPE = shallowRef([firstDayOfCurrentMonth, today])
   const selectedBuildingTypes = ref([])
   const buildingSurface = ref<number | null>(null)
 
@@ -173,6 +198,7 @@
           case DpeTag.E: { return 'orange-accent-3' }
           case DpeTag.F: { return 'deep-orange-darken-3' }
           case DpeTag.G: { return 'red-darken-4' }
+          case DpeTag.N: { return 'grey-darken-1' }
         }
       })(),
     }
@@ -194,8 +220,18 @@
     return t('searchbydpe.results.buildingTypeUnknown')
   }
 
-  function getFullAddress (result: DpeResult) {
-    return `${result.street_number_ban ?? ''} ${result.street_name_ban}, ${result.postal_code_ban} ${result.city_name_ban}`
+  function openPricesMap (result: DpeResult) {
+    const pricesMapURLParams = new URLSearchParams({
+      onglet: 'carte',
+      filtre: 'tous',
+      level: 'section',
+      code: '',
+      lng: (result.longitude ?? 0).toString(),
+      lat: (result.latitude ?? 0).toString(),
+      zoom: '16.00',
+    })
+    window.open(`https://explore.data.gouv.fr/fr/immobilier?${pricesMapURLParams.toString()}`, '_blank')
+    return false
   }
 
   function openGeorisques (result: DpeResult) {
@@ -242,10 +278,12 @@
   }
 
   async function search () {
+    firstSearchDone.value = true
     loading.value = true
     results.value = []
     await dpeApiStore.fetchDpeData({
-      city_name: selectedCommune.value ?? null,
+      city_name: selectedCityName.value ?? null,
+      city_postal_codes: cityPostalCodes.value ?? null,
       tag: selectedNoteDPE.value ?? null,
       surface: buildingSurface.value ?? null,
       from_date: selectedDateDPE.value && selectedDateDPE.value[0] ? new Date(selectedDateDPE.value[0]) : null,

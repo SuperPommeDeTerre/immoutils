@@ -6,6 +6,9 @@ const messages = {
     $vuetify: {
       ...en,
     },
+    generic: {
+      close: 'Close',
+    },
     googleMapsLink: {
       title: 'View on Google Maps',
       defaulttext: 'View on Google Maps',
@@ -40,6 +43,7 @@ const messages = {
         viewDPE: 'View DPE',
         viewCadastre: 'View cadastre',
         viewGeorisques: 'View georisques',
+        viewPricesMap: 'View recent building sales',
         buildingTypeUnknown: 'unknown',
       },
     },
@@ -47,6 +51,9 @@ const messages = {
   fr: {
     $vuetify: {
       ...fr,
+    },
+    generic: {
+      close: 'Fermer',
     },
     googleMapsLink: {
       title: 'Voir sur Google Maps',
@@ -63,6 +70,7 @@ const messages = {
         city: 'Commune',
         buildingType: 'Type de bien',
         dateDPE: 'Date d\'établissement du DPE',
+        cityPostalCodes: 'Codes postaux',
         dpeTag: 'Etiquette DPE',
         buildingSurface: 'Surface habitable',
         buildingSurfaceHint: 'Surface en m² (une recherche à +/- 10% sera effectuée)',
@@ -82,6 +90,7 @@ const messages = {
         viewDPE: 'Voir le DPE',
         viewCadastre: 'Voir le cadastre',
         viewGeorisques: 'Voir les géorisques',
+        viewPricesMap: 'Voir la carte des ventes immobilières récentes',
         buildingTypeUnknown: 'inconnu',
       },
     },

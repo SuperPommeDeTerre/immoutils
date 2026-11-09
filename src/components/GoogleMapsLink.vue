@@ -1,5 +1,12 @@
 <template>
-  <a :href="`https://www.google.com/maps/search/?api=1&query=${query}`" target="_blank" :title="title ?? t('googleMapsLink.title')">{{ text ?? t('googleMapsLink.defaulttext') }}</a>
+  <v-tooltip
+    location="start"
+    :text="title ?? t('googleMapsLink.title')"
+  >
+    <template #activator="{ props }">
+      <a v-bind="props" :href="`https://www.google.com/maps/search/?api=1&query=${query}`" target="_blank" :title="title ?? t('googleMapsLink.title')">{{ text ?? t('googleMapsLink.defaulttext') }}</a>
+    </template>
+  </v-tooltip>
 </template>
 
 <script setup lang="ts">

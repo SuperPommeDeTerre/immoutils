@@ -31,7 +31,7 @@
     "eslint": "^10.14",
     "eslint-config-vuetify": "^4.3",
     "npm-run-all2": "^9.0",
-    "sass-embedded": "^1.98",
+    "sass-embedded": "^1.108",
     "typescript": "npm:typescript-native-bridge@6.0.3-bridge.19.tsgo.7.0.2",
     "unplugin-fonts": "^2.1",
     "vite": "^8.3",
