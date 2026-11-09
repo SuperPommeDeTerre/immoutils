@@ -177,7 +177,7 @@
 
 <script lang="ts" setup>
   import type { SortItem } from 'vuetify/lib/components/VDataTable/composables/sort.mjs'
-  import { capitalize, ref, shallowRef } from 'vue'
+  import { capitalize, ref, shallowRef, watch } from 'vue'
   import { useI18n } from 'vue-i18n'
   import GoogleMapsLink from '@/components/GoogleMapsLink.vue'
   import { DpeBuildingType, type DpeResult, DpeTag, useApiDpeStore } from '@/stores/api-dpe'
@@ -190,8 +190,8 @@
 
   const today = new Date()
   const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const selectedCityName = ref('')
-  const cityPostalCodes = ref<number[]>([])
+  const selectedCityName = ref(localStorage.getItem('lastUsedCityName') || '')
+  const cityPostalCodes = ref<number[]>(JSON.parse(localStorage.getItem('lastUsedPostalCodes') || '[]'))
   const selectedNoteDPE = ref([])
   const selectedDateDPE = shallowRef([firstDayOfCurrentMonth, today])
   const selectedBuildingTypes = ref([])
@@ -233,6 +233,14 @@
   })
 
   const results = ref<DpeResult[]>([])
+
+  watch(cityPostalCodes, (newVal, _oldVal) => {
+    localStorage.setItem('lastUsedPostalCodes', JSON.stringify(newVal))
+  })
+
+  watch(selectedCityName, (newVal, _oldVal) => {
+    localStorage.setItem('lastUsedCityName', newVal ?? '')
+  })
 
   function getBuildingTypeDisplayString (buildingType: DpeBuildingType | string | null): string {
     if (typeof buildingType === 'string' && Object.values(DpeBuildingType).includes(buildingType as DpeBuildingType)) {

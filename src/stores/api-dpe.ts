@@ -314,14 +314,13 @@ export const useApiDpeStore = defineStore('api-dpe', {
       const promisesToWait: Promise<any>[] = []
       // If start date or end date are before 2021-07-01, then, we need to fetch another API
       if (criterias.from_date && criterias.from_date < dpeRepositoryChangeDate) {
-        console.log('Fetching data from API before 2021-07-01')
         const searchParams = await searchCriteriasToURLSearchParamsForAPIBefore2021_07_01(criterias)
         promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe-france/lines?${searchParams.toString()}`)
           .then(data => data.json())
           .then(async data => await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResultBefore2021_07_01(raw_result)))))
       }
-      if (criterias.to_date && criterias.to_date >= dpeRepositoryChangeDate) {
-        console.log('Fetching data from API after 2021-07-01')
+      if ((!criterias.to_date && criterias.from_date && criterias.from_date >= dpeRepositoryChangeDate)
+        || (criterias.to_date && criterias.to_date >= dpeRepositoryChangeDate)) {
         const searchParams = searchCriteriasToURLSearchParamsForAPIAfter2021_07_01(criterias)
         // https://data.ademe.fr/data-fair/api/v1/datasets/dpe-france/lines
         promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
