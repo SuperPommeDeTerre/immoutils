@@ -93,6 +93,7 @@ const messages = {
         viewGeorisques: 'Voir les géorisques',
         viewPricesMap: 'Voir la carte des ventes immobilières récentes',
         buildingTypeUnknown: 'inconnu',
+        noAddress: 'Adresse non disponible',
       },
     },
   },

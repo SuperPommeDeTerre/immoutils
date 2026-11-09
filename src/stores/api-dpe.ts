@@ -214,18 +214,21 @@ async function rawApiResultToDpeResultBefore2021_07_01 (raw_result: any): Promis
     insee_code_ban: raw_result.code_insee_commune_actualise,
     building_type: getBuildingTypeFromStringBefore2021_07_01(raw_result.tr002_type_batiment_description),
   }
-  const searchQueryParams = new URLSearchParams({ q: raw_result.geo_adresse })
-  await fetch(`https://api-adresse.data.gouv.fr/search/?${searchQueryParams.toString()}`)
-    .then(response => response.json())
-    .then(data => {
-      if (data.features && data.features.length > 0) {
-        const firstResult = data.features[0].properties
-        returned_result.street_name_ban = firstResult.street ?? ''
-        returned_result.street_number_ban = firstResult.housenumber ?? ''
-        returned_result.postal_code_ban = firstResult.postcode ?? ''
-        returned_result.city_name_ban = firstResult.city ?? ''
-      }
-    })
+  if (raw_result.geo_adresse) {
+    // Only perform a lookup when address is defined
+    const searchQueryParams = new URLSearchParams({ q: raw_result.geo_adresse })
+    await fetch(`https://api-adresse.data.gouv.fr/search/?${searchQueryParams.toString()}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.features && data.features.length > 0) {
+          const firstResult = data.features[0].properties
+          returned_result.street_name_ban = firstResult.street ?? ''
+          returned_result.street_number_ban = firstResult.housenumber ?? ''
+          returned_result.postal_code_ban = firstResult.postcode ?? ''
+          returned_result.city_name_ban = firstResult.city ?? ''
+        }
+      })
+  }
   return returned_result
 }
 

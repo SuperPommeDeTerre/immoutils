@@ -135,12 +135,39 @@
 
           <td>{{ capitalize(getBuildingTypeDisplayString(item.building_type)) }}</td>
           <td>{{ item.building_year }}</td>
-          <td><GoogleMapsLink :query="item.full_address" :text="item.full_address" /></td>
+
+          <td>
+            <GoogleMapsLink v-if="item.full_address" :query="item.full_address" :text="item.full_address" />
+
+            <v-chip v-else color="warning" prepend-icon="mdi-map-marker-question">
+              {{ t('searchbydpe.results.noAddress') }}
+            </v-chip>
+          </td>
 
           <td class="text-center">
-            <v-btn density="compact" icon="mdi-map" :title="t('searchbydpe.results.viewCadastre')" @click="openCadastre(item)" />
-            <v-btn density="compact" icon="mdi-alert" :title="t('searchbydpe.results.viewGeorisques')" @click="openGeorisques(item)" />
-            <v-btn density="compact" icon="mdi-currency-eur" :title="t('searchbydpe.results.viewPricesMap')" @click="openPricesMap(item)" />
+            <v-btn
+              density="compact"
+              :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
+              icon="mdi-map"
+              :title="t('searchbydpe.results.viewCadastre')"
+              @click="openCadastre(item)"
+            />
+
+            <v-btn
+              density="compact"
+              :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
+              icon="mdi-alert"
+              :title="t('searchbydpe.results.viewGeorisques')"
+              @click="openGeorisques(item)"
+            />
+
+            <v-btn
+              density="compact"
+              :disabled="!item.longitude || !item.latitude"
+              icon="mdi-currency-eur"
+              :title="t('searchbydpe.results.viewPricesMap')"
+              @click="openPricesMap(item)"
+            />
           </td>
         </tr>
       </template>
