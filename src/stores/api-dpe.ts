@@ -107,6 +107,8 @@ async function searchCriteriasToURLSearchParamsForAPIBefore2021_07_01 (criterias
     'tr002_type_batiment_description',
     'code_insee_commune_actualise',
     'geo_adresse'].join(','))
+  searchParams.append('sort', 'date_etablissement_dpe')
+  searchParams.append('size', '500')
   return searchParams
 }
 
