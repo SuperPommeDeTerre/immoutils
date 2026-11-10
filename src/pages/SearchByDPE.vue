@@ -8,7 +8,8 @@
           <v-col cols="4">
             <v-text-field
               v-model="selectedCityName"
-              :label="t('searchbydpe.search.city')"
+              :hint="t('searchbydpe.search.city.hint')"
+              :label="t('searchbydpe.search.city.label')"
             />
           </v-col>
 
@@ -17,8 +18,8 @@
               v-model="cityPostalCodes"
               append-icon=""
               chips
-              clearable
-              :label="t('searchbydpe.search.cityPostalCodes')"
+              :hint="t('searchbydpe.search.cityPostalCodes.hint')"
+              :label="t('searchbydpe.search.cityPostalCodes.label')"
               multiple
             >
               <template #selection="{ item }">
@@ -46,9 +47,9 @@
             <v-date-input
               v-model="selectedDateDPE"
               first-day-of-week="1"
-              :hint="t('searchbydpe.search.dateDPEHint')"
+              :hint="t('searchbydpe.search.dateDPE.hint')"
               input-format="dd/mm/yyyy"
-              :label="t('searchbydpe.search.dateDPE')"
+              :label="t('searchbydpe.search.dateDPE.label')"
               :max="new Date().toISOString().split('T')[0]"
               min="2013-01-01"
               multiple="range"
@@ -79,8 +80,8 @@
               v-model="buildingSurface"
               clearable
               control-variant="hidden"
-              :hint="t('searchbydpe.search.buildingSurfaceHint')"
-              :label="t('searchbydpe.search.buildingSurface')"
+              :hint="t('searchbydpe.search.buildingSurface.hint')"
+              :label="t('searchbydpe.search.buildingSurface.label')"
               prepend-inner-icon="mdi-ruler-square"
             />
           </v-col>
@@ -246,6 +247,8 @@
   watch(cityPostalCodes, (newVal, _oldVal) => localStorage.setItem('lastUsedPostalCodes', JSON.stringify(newVal)))
   watch(selectedCityName, (newVal, _oldVal) => localStorage.setItem('lastUsedCityName', newVal ?? ''))
   watch(itemsPerPage, (newVal, _oldVal) => localStorage.setItem('lastUsedItemsPerPage', newVal.toString()))
+
+  // Sadly, the watch isn't fired with v-data-table-server, so we must handle the event on the table and change the value manually
   function changeItemPerPage (nbItemsPerPage: number) {
     itemsPerPage.value = nbItemsPerPage
   }

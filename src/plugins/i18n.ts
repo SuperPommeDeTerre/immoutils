@@ -67,14 +67,24 @@ const messages = {
     searchbydpe: {
       title: 'Recherche par DPE',
       search: {
-        city: 'Commune',
+        city: {
+          label: 'Commune',
+          hint: 'Recherche dans le nom de la commune telle que saisie par le diagnostiqueur.',
+        },
         buildingType: 'Type de bien',
-        dateDPE: 'Date d\'établissement du DPE',
-        dateDPEHint: 'Attention : Les recherches avant le 01/07/2021 peuvent être plus longues',
-        cityPostalCodes: 'Codes postaux',
+        dateDPE: {
+          label: 'Date d\'établissement du DPE',
+          hint: 'Attention : Les recherches avant le 01/07/2021 peuvent être plus longues.',
+        },
+        cityPostalCodes: {
+          label: 'Codes postaux',
+          hint: 'Vous pouvez saisir plusieurs codes postaux pour rechercher sur plusieurs communes.',
+        },
         dpeTag: 'Etiquette DPE',
-        buildingSurface: 'Surface habitable',
-        buildingSurfaceHint: 'Surface en m² (une recherche à +/- 10% sera effectuée)',
+        buildingSurface: {
+          label: 'Surface habitable',
+          hint: 'Surface en m² (une recherche à +/- 10% sera effectuée).',
+        },
         searchButton: 'Rechercher',
       },
       headers: {
