@@ -113,7 +113,7 @@
       <template #item="{ item }">
         <tr>
           <td>
-            <a v-if="item.dpe_date < dpeRepositoryChangeDate" href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a>
+            <a v-if="item.dpe_date < DPE_REPOSITORY_CHANGE_DATE" href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a>
             <template v-else>{{ item.dpe_number }}</template>
           </td>
 
@@ -184,7 +184,7 @@
   import { capitalize, ref, shallowRef, watch } from 'vue'
   import { useI18n } from 'vue-i18n'
   import GoogleMapsLink from '@/components/GoogleMapsLink.vue'
-  import { DpeBuildingType, dpeRepositoryChangeDate, type DpeResult, DpeTag, useApiDpeStore } from '@/stores/api-dpe'
+  import { DPE_REPOSITORY_CHANGE_DATE, DpeBuildingType, type DpeResult, DpeTag, useApiDpeStore } from '@/stores/api-dpe'
   import { useApiGeocodageStore } from '@/stores/api-geocodage'
 
   const { t } = useI18n()
@@ -295,15 +295,12 @@
 
   async function openCadastre (result: DpeResult) {
     // Get closest parcel number from coordinates
-    const departmentCode = result.insee_code_ban?.slice(0, 2)
-    const municipalityCode = result.insee_code_ban?.slice(2)
     const zoomLevel = 18
 
     const parcelId = await geocodageApiStore.getCadastreParcelId({
       longitude: result.longitude ?? 0,
       latitude: result.latitude ?? 0,
-      departmentCode: departmentCode ?? '',
-      municipalityCode: municipalityCode ?? '',
+      cityInseeCode: result.insee_code_ban ?? null,
     })
     let cadastreLink = `https://cadastre.data.gouv.fr/map?style=ortho&parcelleId=${parcelId}#${zoomLevel}/`
     if (result.longitude != 0 && result.latitude != 0) {
@@ -321,7 +318,7 @@
     firstSearchDone.value = true
     loading.value = true
     results.value = []
-    await dpeApiStore.fetchDpeData({
+    await dpeApiStore.searchWithCriterias({
       city_name: selectedCityName.value ?? null,
       city_postal_codes: cityPostalCodes.value ?? null,
       tag: selectedNoteDPE.value ?? null,
