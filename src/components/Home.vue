@@ -5,7 +5,7 @@
     <p>Cela comprend&nbsp;:</p>
 
     <ul>
-      <li>La recherche de biens par DPE</li>
+      <li><RouterLink to="/recherche-dpe">La recherche de biens par DPE</RouterLink></li>
     </ul>
   </v-container>
 </template>
