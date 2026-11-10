@@ -5,10 +5,11 @@
     <p>Cela comprend&nbsp;:</p>
 
     <ul>
-      <li><RouterLink to="/recherche-dpe">La recherche de biens par DPE</RouterLink></li>
+      <li><RouterLink :to="{ name: Pages.SEARCH_BY_DPE }">La recherche de biens par DPE</RouterLink></li>
     </ul>
   </v-container>
 </template>
 
 <script setup lang="ts">
+  import { Pages } from '@/router'
 </script>
