@@ -2,7 +2,7 @@
   <v-container fluid>
     <h1>{{ t('searchbydpe.title') }}</h1>
 
-    <v-form validate-on="submit lazy" @submit="search" @submit.prevent="validateCriterias">
+    <v-form validate-on="submit lazy" @submit="loadDPEItems({ page: 1, itemsPerPage: itemsPerPage })" @submit.prevent="validateCriterias">
       <v-container fluid>
         <v-row>
           <v-col cols="4">
@@ -92,7 +92,7 @@
   </v-container>
 
   <v-container fluid>
-    <v-data-table
+    <v-data-table-server
       v-if="firstSearchDone"
       v-model:sort-by="resultsSortBy"
       density="compact"
@@ -100,11 +100,14 @@
       :headers="resultsHeaders"
       :hover="true"
       :items="results"
-      :items-per-page="100"
+      :items-length="totalDPEItems"
+      :items-per-page="itemsPerPage"
       :loading="loading"
       sort-asc-icon="mdi-sort-ascending"
       sort-desc-icon="mdi-sort-descending"
       sort-icon="mdi-swap-vertical"
+      @update:items-per-page="changeItemPerPage"
+      @update:options="loadDPEItems"
     >
       <template #loading>
         <v-skeleton-loader type="table-row@10" />
@@ -175,7 +178,7 @@
           </td>
         </tr>
       </template>
-    </v-data-table>
+    </v-data-table-server>
   </v-container>
 </template>
 
@@ -200,11 +203,13 @@
   const selectedDateDPE = shallowRef([firstDayOfCurrentMonth, today])
   const selectedBuildingTypes = ref([])
   const buildingSurface = ref<number | null>(null)
+  const totalDPEItems = ref(0)
+  const itemsPerPage = ref(Number.parseInt(localStorage.getItem('lastUsedItemsPerPage') ?? '50'))
 
   const dpeApiStore = useApiDpeStore()
   const geocodageApiStore = useApiGeocodageStore()
 
-  const resultsSortBy = ref<SortItem[]>([{ key: 'dpe_date', order: 'asc' }])
+  const resultsSortBy = ref<SortItem[]>([{ key: 'dpe_date', order: 'desc' }])
 
   const resultsHeaders = ref([
     { title: t('searchbydpe.headers.dpeNumber'), key: 'dpe_number' },
@@ -238,13 +243,12 @@
 
   const results = ref<DpeResult[]>([])
 
-  watch(cityPostalCodes, (newVal, _oldVal) => {
-    localStorage.setItem('lastUsedPostalCodes', JSON.stringify(newVal))
-  })
-
-  watch(selectedCityName, (newVal, _oldVal) => {
-    localStorage.setItem('lastUsedCityName', newVal ?? '')
-  })
+  watch(cityPostalCodes, (newVal, _oldVal) => localStorage.setItem('lastUsedPostalCodes', JSON.stringify(newVal)))
+  watch(selectedCityName, (newVal, _oldVal) => localStorage.setItem('lastUsedCityName', newVal ?? ''))
+  watch(itemsPerPage, (newVal, _oldVal) => localStorage.setItem('lastUsedItemsPerPage', newVal.toString()))
+  function changeItemPerPage (nbItemsPerPage: number) {
+    itemsPerPage.value = nbItemsPerPage
+  }
 
   function getBuildingTypeDisplayString (buildingType: DpeBuildingType | string | null): string {
     if (typeof buildingType === 'string' && Object.values(DpeBuildingType).includes(buildingType as DpeBuildingType)) {
@@ -314,11 +318,16 @@
     e.preventDefault()
   }
 
-  async function search () {
+  interface LoadDPEItemsParams {
+    page: number
+    itemsPerPage: number
+    sortBy?: { key: string, order: 'asc' | 'desc' }[] | null
+  }
+
+  function loadDPEItems ({ page, itemsPerPage, sortBy }: LoadDPEItemsParams) {
     firstSearchDone.value = true
     loading.value = true
-    results.value = []
-    await dpeApiStore.searchWithCriterias({
+    void dpeApiStore.searchWithCriterias({
       city_name: selectedCityName.value ?? null,
       city_postal_codes: cityPostalCodes.value ?? null,
       tag: selectedNoteDPE.value ?? null,
@@ -326,8 +335,13 @@
       from_date: selectedDateDPE.value?.[0] ? new Date(selectedDateDPE.value[0]) : null,
       to_date: selectedDateDPE.value?.[1] ? new Date(selectedDateDPE.value[1]) : null,
       building_type: selectedBuildingTypes.value ?? null,
+      page,
+      itemsPerPage,
+      sortBy,
+    }).then(({ items, total }) => {
+      results.value = items
+      totalDPEItems.value = total
+      loading.value = false
     })
-    results.value = dpeApiStore.dpe_established
-    loading.value = false
   }
 </script>

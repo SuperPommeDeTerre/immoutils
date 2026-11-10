@@ -107,8 +107,16 @@ async function searchCriteriasToURLSearchParamsForAPIBefore2021_07_01 (criterias
     'tr002_type_batiment_description',
     'code_insee_commune_actualise',
     'geo_adresse'].join(','))
-  searchParams.append('sort', 'date_etablissement_dpe')
-  searchParams.append('size', '500')
+  if (criterias.itemsPerPage === -1) {
+    searchParams.append('size', '1000')
+  } else {
+    searchParams.append('size', criterias.itemsPerPage.toString())
+  }
+  searchParams.append('page', criterias.page.toString())
+  const sorting = getSortCriteriaForAPI(criterias.sortBy ?? null, true)
+  if (sorting) {
+    searchParams.append('sort', sorting)
+  }
   return searchParams
 }
 
@@ -154,8 +162,16 @@ function searchCriteriasToURLSearchParamsForAPIAfter2021_07_01 (criterias: DpeAp
     'coordonnee_cartographique_x_ban',
     'coordonnee_cartographique_y_ban',
     'surface_habitable_logement'].join(','))
-  searchParams.append('sort', 'date_etablissement_dpe')
-  searchParams.append('size', '500')
+  if (criterias.itemsPerPage === -1) {
+    searchParams.append('size', '1000')
+  } else {
+    searchParams.append('size', criterias.itemsPerPage.toString())
+  }
+  searchParams.append('page', criterias.page.toString())
+  const sorting = getSortCriteriaForAPI(criterias.sortBy ?? null, false)
+  if (sorting) {
+    searchParams.append('sort', sorting)
+  }
   return searchParams
 }
 
@@ -290,6 +306,73 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
   return returned_result
 }
 
+function formatSortingCriteria (key: string, order: string): string {
+  return `${order === 'desc' ? '-' : ''}${key}`
+}
+
+function getSortCriteriaForAPI (sorting_request: { key: string, order: 'asc' | 'desc' }[] | null, isBefore2021: boolean): string | null {
+  let sortCriteria = null
+  if (!sorting_request || sorting_request.length === 0) {
+    return null
+  }
+  if (isBefore2021) {
+    switch (sorting_request[0].key) {
+      case 'dpe_number': {
+        sortCriteria = formatSortingCriteria('numero_dpe', sorting_request[0].order)
+        break
+      }
+      case 'dpe_date': {
+        sortCriteria = formatSortingCriteria('date_etablissement_dpe', sorting_request[0].order)
+        break
+      }
+      case 'dpe_tag': {
+        sortCriteria = formatSortingCriteria('consommation_energie', sorting_request[0].order)
+        break
+      }
+      case 'habitable_surface': {
+        sortCriteria = formatSortingCriteria('surface_thermique_lot', sorting_request[0].order)
+        break
+      }
+      case 'building_type': {
+        sortCriteria = formatSortingCriteria('tr002_type_batiment_description', sorting_request[0].order)
+        break
+      }
+      case 'building_year': {
+        sortCriteria = formatSortingCriteria('annee_construction', sorting_request[0].order)
+        break
+      }
+    }
+  } else {
+    switch (sorting_request[0].key) {
+      case 'dpe_number': {
+        sortCriteria = formatSortingCriteria('numero_dpe', sorting_request[0].order)
+        break
+      }
+      case 'dpe_date': {
+        sortCriteria = formatSortingCriteria('date_etablissement_dpe', sorting_request[0].order)
+        break
+      }
+      case 'dpe_tag': {
+        sortCriteria = formatSortingCriteria('etiquette_dpe', sorting_request[0].order)
+        break
+      }
+      case 'habitable_surface': {
+        sortCriteria = formatSortingCriteria('surface_habitable_logement', sorting_request[0].order)
+        break
+      }
+      case 'building_type': {
+        sortCriteria = formatSortingCriteria('type_batiment', sorting_request[0].order)
+        break
+      }
+      case 'building_year': {
+        sortCriteria = formatSortingCriteria('annee_construction', sorting_request[0].order)
+        break
+      }
+    }
+  }
+  return sortCriteria
+}
+
 /**
  * Search criterias for DPE
  */
@@ -301,6 +384,9 @@ export interface DpeApiSearchCriterias {
   from_date?: Date | null
   to_date?: Date | null
   building_type?: string[] | null
+  page: number
+  itemsPerPage: number
+  sortBy?: { key: string, order: 'asc' | 'desc' }[] | null
 }
 
 export const DPE_REPOSITORY_CHANGE_DATE = new Date('2021-07-01')
@@ -310,14 +396,16 @@ export const useApiDpeStore = defineStore('api-dpe', {
     dpe_established: [] as DpeResult[],
   }),
   actions: {
-    async searchWithCriterias (criterias: DpeApiSearchCriterias) {
+    async searchWithCriterias (criterias: DpeApiSearchCriterias): Promise<{ items: DpeResult[], total: number }> {
       const promisesToWait: Promise<any>[] = []
       // If start date or end date are before 2021-07-01, then, we need to fetch the old API
       if (criterias.from_date && criterias.from_date < DPE_REPOSITORY_CHANGE_DATE) {
         const searchParams = await searchCriteriasToURLSearchParamsForAPIBefore2021_07_01(criterias)
         promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe-france/lines?${searchParams.toString()}`)
           .then(data => data.json())
-          .then(async data => await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResultBefore2021_07_01(raw_result)))))
+          .then(async data => {
+            return { total: data.total, items: await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResultBefore2021_07_01(raw_result))) }
+          }))
       }
       // If the range includes dates after 2021-07-01, then we must fetch the new API
       if ((!criterias.to_date && criterias.from_date && criterias.from_date >= DPE_REPOSITORY_CHANGE_DATE)
@@ -325,11 +413,18 @@ export const useApiDpeStore = defineStore('api-dpe', {
         const searchParams = searchCriteriasToURLSearchParamsForAPIAfter2021_07_01(criterias)
         promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
           .then(data => data.json())
-          .then(async data => await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResult(raw_result)))))
+          .then(async data => {
+            return { total: data.total, items: await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResult(raw_result))) }
+          }))
       }
       const resultsFromAllAPI = await Promise.all(promisesToWait)
-      const mergedResults = resultsFromAllAPI.flat()
+      let grandTotal = 0
+      const mergedResults = resultsFromAllAPI.reduce((acc, { total, items }) => {
+        grandTotal += total
+        return acc.concat(items)
+      }, [] as DpeResult[])
       useApiDpeStore().dpe_established = mergedResults
+      return { items: mergedResults, total: grandTotal }
     },
   },
 })
