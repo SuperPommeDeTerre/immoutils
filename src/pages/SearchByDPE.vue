@@ -112,7 +112,11 @@
 
       <template #item="{ item }">
         <tr>
-          <td><a :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a></td>
+          <td>
+            <a v-if="item.dpe_date < dpeRepositoryChangeDate" href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a>
+            <template v-else>{{ item.dpe_number }}</template>
+          </td>
+
           <td>{{ item.dpe_date.toLocaleDateString() }}</td>
 
           <td>
@@ -180,7 +184,7 @@
   import { capitalize, ref, shallowRef, watch } from 'vue'
   import { useI18n } from 'vue-i18n'
   import GoogleMapsLink from '@/components/GoogleMapsLink.vue'
-  import { DpeBuildingType, type DpeResult, DpeTag, useApiDpeStore } from '@/stores/api-dpe'
+  import { DpeBuildingType, dpeRepositoryChangeDate, type DpeResult, DpeTag, useApiDpeStore } from '@/stores/api-dpe'
   import { useApiGeocodageStore } from '@/stores/api-geocodage'
 
   const { t } = useI18n()
@@ -322,8 +326,8 @@
       city_postal_codes: cityPostalCodes.value ?? null,
       tag: selectedNoteDPE.value ?? null,
       surface: buildingSurface.value ?? null,
-      from_date: selectedDateDPE.value && selectedDateDPE.value[0] ? new Date(selectedDateDPE.value[0]) : null,
-      to_date: selectedDateDPE.value && selectedDateDPE.value[1] ? new Date(selectedDateDPE.value[1]) : null,
+      from_date: selectedDateDPE.value?.[0] ? new Date(selectedDateDPE.value[0]) : null,
+      to_date: selectedDateDPE.value?.[1] ? new Date(selectedDateDPE.value[1]) : null,
       building_type: selectedBuildingTypes.value ?? null,
     })
     results.value = dpeApiStore.dpe_established
