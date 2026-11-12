@@ -111,7 +111,7 @@
       <template #item="{ item }">
         <tr>
           <td>
-            <a v-if="item.dpe_date >= DPE_REPOSITORY_CHANGE_DATE" href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a>
+            <a v-if="item.dpe_date >= DPE_REPOSITORY_CHANGE_DATE" :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a>
             <template v-else>{{ item.dpe_number }}</template>
           </td>
 
