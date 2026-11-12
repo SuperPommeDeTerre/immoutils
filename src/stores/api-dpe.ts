@@ -69,7 +69,7 @@ export interface DpeResult {
 }
 
 function dateToAPIString (date: Date): string {
-  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${(date.getDate()).toString().padStart(2, '0')}`
 }
 
 function getDiagnosticsDateRangeParams (from_date?: Date | null, to_date?: Date | null, prefix = 'date_etablissement_dpe', eq_suffix = 'eq', lte_suffix = 'lte', gte_suffix = 'gte'): Record<string, string> {
