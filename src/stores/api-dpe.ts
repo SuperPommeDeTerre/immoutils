@@ -16,6 +16,32 @@ export enum DpeTag {
   N = 'N',
 }
 
+export interface DpeTagDisplayed {
+  label: string
+  value: DpeTag
+  color: string
+}
+
+export const dpeNotes: DpeTagDisplayed[] = (Object.keys(DpeTag) as Array<keyof typeof DpeTag>).map(dpeTag => {
+  const tagDisplayed: DpeTagDisplayed = {
+    label: dpeTag as string,
+    value: DpeTag[dpeTag],
+    color: (() => {
+      switch (DpeTag[dpeTag]) {
+        case DpeTag.A: { return 'green-darken-4' }
+        case DpeTag.B: { return 'green-darken-1' }
+        case DpeTag.C: { return 'light-green-darken-1' }
+        case DpeTag.D: { return 'yellow-accent-3' }
+        case DpeTag.E: { return 'orange-accent-3' }
+        case DpeTag.F: { return 'deep-orange-darken-3' }
+        case DpeTag.G: { return 'red-darken-4' }
+        case DpeTag.N: { return 'grey-darken-1' }
+      }
+    })(),
+  }
+  return tagDisplayed
+})
+
 export enum DpeBuildingType {
   HOUSE = 'maison',
   APARTMENT = 'appartement',
@@ -275,8 +301,6 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
   if (!returned_result.city_name_ban && raw_result.nom_commune_brut) {
     returned_result.city_name_ban = raw_result.nom_commune_brut
   }
-  // Compute the full address
-  returned_result.full_address = computeFullAddress(returned_result)
   // Convert X/Y (referentiel epsg 2154 lambert 93) to latitude/longitude (WGS84)
   if (!raw_result.coordonnee_cartographique_x_ban && !raw_result.coordonnee_cartographique_y_ban && raw_result.adresse_complete_brut) {
     // If no coordinates returned, then try to infer them from postal address
@@ -289,6 +313,10 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
           returned_result.longitude = coords[0]
           returned_result.latitude = coords[1]
           returned_result.insee_code_ban = data.features[0].properties.citycode
+          returned_result.street_number_ban = data.features[0].properties.housenumber
+          returned_result.street_name_ban = data.features[0].properties.street
+          returned_result.postal_code_ban = data.features[0].properties.postcode
+          returned_result.city_name_ban = data.features[0].properties.city
         }
       })
   } else {
@@ -303,6 +331,8 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
       returned_result.latitude = gpsCoordinates[1]
     }
   }
+  // Compute the full address
+  returned_result.full_address = computeFullAddress(returned_result)
   return returned_result
 }
 

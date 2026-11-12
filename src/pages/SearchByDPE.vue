@@ -18,14 +18,12 @@
               v-model="cityPostalCodes"
               append-icon=""
               chips
+              clearable
+              closable-chips
               :hint="t('searchbydpe.search.cityPostalCodes.hint')"
               :label="t('searchbydpe.search.cityPostalCodes.label')"
               multiple
-            >
-              <template #selection="{ item }">
-                <v-chip closable small>{{ item }}</v-chip>
-              </template>
-            </v-combobox>
+            />
           </v-col>
 
           <v-col cols="4">
@@ -33,6 +31,7 @@
               v-model="selectedBuildingTypes"
               chips
               clearable
+              closable-chips
               :item-title="item => getBuildingTypeDisplayString(item)"
               :item-value="item => item"
               :items="Object.values(DpeBuildingType)"
@@ -59,20 +58,7 @@
           </v-col>
 
           <v-col cols="4">
-            <v-select
-              v-model="selectedNoteDPE"
-              chips
-              clearable
-              item-title="label"
-              item-value="value"
-              :items="dpeNotes"
-              :label="t('searchbydpe.search.dpeTag')"
-              multiple
-            >
-              <template #item="{ props: dpeNoteProps, item }">
-                <v-list-item v-bind="dpeNoteProps" :base-color="item.color" color="secondary" />
-              </template>
-            </v-select>
+            <SelectDpeTag v-model="selectedNoteDPE" />
           </v-col>
 
           <v-col cols="4">
@@ -88,7 +74,15 @@
         </v-row>
       </v-container>
 
-      <v-btn block class="mt-2" prepend-icon="mdi-magnify" type="submit">{{ t('searchbydpe.search.searchButton') }}</v-btn>
+      <v-btn
+        block
+        class="mt-2"
+        :disabled="loading"
+        prepend-icon="mdi-magnify"
+        type="submit"
+      >
+        {{ t('searchbydpe.search.searchButton') }}
+      </v-btn>
     </v-form>
   </v-container>
 
@@ -188,7 +182,8 @@
   import { capitalize, ref, shallowRef, watch } from 'vue'
   import { useI18n } from 'vue-i18n'
   import GoogleMapsLink from '@/components/GoogleMapsLink.vue'
-  import { DPE_REPOSITORY_CHANGE_DATE, DpeBuildingType, type DpeResult, DpeTag, useApiDpeStore } from '@/stores/api-dpe'
+  import SelectDpeTag from '@/components/SelectDpeTag.vue'
+  import { DPE_REPOSITORY_CHANGE_DATE, DpeBuildingType, dpeNotes, type DpeResult, type DpeTag, useApiDpeStore } from '@/stores/api-dpe'
   import { useApiGeocodageStore } from '@/stores/api-geocodage'
 
   const { t } = useI18n()
@@ -200,7 +195,7 @@
   const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   const selectedCityName = ref(localStorage.getItem('lastUsedCityName') || '')
   const cityPostalCodes = ref<number[]>(JSON.parse(localStorage.getItem('lastUsedPostalCodes') || '[]'))
-  const selectedNoteDPE = ref([])
+  const selectedNoteDPE = ref<DpeTag[]>([])
   const selectedDateDPE = shallowRef([firstDayOfCurrentMonth, today])
   const selectedBuildingTypes = ref([])
   const buildingSurface = ref<number | null>(null)
@@ -222,25 +217,6 @@
     { title: t('searchbydpe.headers.address'), key: 'address', sortable: false },
     { title: t('searchbydpe.headers.links'), key: 'liens', align: 'center', sortable: false },
   ] as const)
-
-  const dpeNotes = (Object.keys(DpeTag) as Array<keyof typeof DpeTag>).map(dpeTag => {
-    return {
-      label: dpeTag as string,
-      value: dpeTag,
-      color: (() => {
-        switch (dpeTag) {
-          case DpeTag.A: { return 'green-darken-4' }
-          case DpeTag.B: { return 'green-darken-1' }
-          case DpeTag.C: { return 'light-green-darken-1' }
-          case DpeTag.D: { return 'yellow-accent-3' }
-          case DpeTag.E: { return 'orange-accent-3' }
-          case DpeTag.F: { return 'deep-orange-darken-3' }
-          case DpeTag.G: { return 'red-darken-4' }
-          case DpeTag.N: { return 'grey-darken-1' }
-        }
-      })(),
-    }
-  })
 
   const results = ref<DpeResult[]>([])
 
