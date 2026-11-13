@@ -7,6 +7,15 @@ export interface ApiCadastreSearchCriterias {
   cityInseeCode: string | null
 }
 
+export interface ApiCadastreParcelInfo {
+  code_insee: string
+  code_arr: string
+  section: string
+  numero: string
+  parcelId: string
+  surface: number | null
+}
+
 export const useApiGeocodageStore = defineStore('api-geocodage', {
   state: () => ({
     //
@@ -41,6 +50,29 @@ export const useApiGeocodageStore = defineStore('api-geocodage', {
           return data.features[0]?.properties?.id
         })
       return parcelId
+    },
+    async getInformationFromParcelId (parcelId: string): Promise<ApiCadastreParcelInfo> {
+      const cadastreRequestParams = new URLSearchParams({
+        code_insee: parcelId.slice(0, 5), // Assuming the first 5 characters of parcelId represent the INSEE code
+        code_arr: parcelId.slice(5, 8), // Assuming the next 3 characters represent the arrondissement code
+        section: parcelId.slice(8, 10), // Assuming the next 2 characters represent the section
+        numero: parcelId.slice(10), // Assuming the remaining characters represent the parcel number
+      })
+      const parcelInfo = await fetch(`https://apicarto.ign.fr/api/cadastre/parcelle?${cadastreRequestParams.toString()}`)
+        .then(data => data.json())
+        .then(data => {
+          const properties = data.features[0]?.properties || {}
+          const parcelInfoResult: ApiCadastreParcelInfo = {
+            code_insee: properties.code_insee || '',
+            code_arr: properties.code_arr || '',
+            section: properties.section || '',
+            numero: properties.numero || '',
+            surface: properties.contenance || null,
+            parcelId: parcelId || '',
+          }
+          return parcelInfoResult
+        })
+      return parcelInfo
     },
   },
 })

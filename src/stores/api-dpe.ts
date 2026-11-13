@@ -1,6 +1,9 @@
 // Store for the DPE API from ADEME (see https://data.ademe.fr/datasets/dpe03existant/api-doc)
 import { defineStore } from 'pinia'
 import proj4 from 'proj4'
+import { useApiGeocodageStore } from './api-geocodage'
+
+const cadastreStore = useApiGeocodageStore()
 
 /**
  * Allewed DPE tags
@@ -61,9 +64,12 @@ export interface DpeResult {
   postal_code_ban?: string | null
   insee_code_ban?: string | null
   full_address: string
+  parcelId?: string | null
   building_year?: number | null
   building_type: DpeBuildingType | string | null
+  housing_typology?: string | null
   habitable_surface?: number | null
+  parcel_surface?: number | null
   latitude?: number | null
   longitude?: number | null
 }
@@ -187,7 +193,8 @@ function searchCriteriasToURLSearchParamsForAPIAfter2021_07_01 (criterias: DpeAp
     'code_insee_ban',
     'coordonnee_cartographique_x_ban',
     'coordonnee_cartographique_y_ban',
-    'surface_habitable_logement'].join(','))
+    'surface_habitable_logement',
+    'surface_habitable_immeuble'].join(','))
   if (criterias.itemsPerPage === -1) {
     searchParams.append('size', '1000')
   } else {
@@ -274,7 +281,7 @@ async function rawApiResultToDpeResultBefore2021_07_01 (raw_result: any): Promis
   return returned_result
 }
 
-async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
+async function rawApiResultToDpeResultAfter2021_07_01 (raw_result: any): Promise<DpeResult> {
   const returned_result: DpeResult = {
     dpe_number: raw_result.numero_dpe,
     dpe_date: new Date(raw_result.date_etablissement_dpe),
@@ -287,7 +294,7 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
     full_address: '',
     building_year: raw_result.annee_construction,
     building_type: getBuildingTypeFromString(raw_result.type_batiment),
-    habitable_surface: raw_result.surface_habitable_logement,
+    habitable_surface: raw_result.surface_habitable_logement ?? raw_result.surface_habitable_immeuble,
     latitude: raw_result.coordonnee_cartographique_y_ban,
     longitude: raw_result.coordonnee_cartographique_x_ban,
   }
@@ -300,6 +307,9 @@ async function rawApiResultToDpeResult (raw_result: any): Promise<DpeResult> {
   }
   if (!returned_result.city_name_ban && raw_result.nom_commune_brut) {
     returned_result.city_name_ban = raw_result.nom_commune_brut
+  }
+  if (raw_result.typologie_logement) {
+    returned_result.housing_typology = raw_result.typologie_logement
   }
   // Convert X/Y (referentiel epsg 2154 lambert 93) to latitude/longitude (WGS84)
   if (!raw_result.coordonnee_cartographique_x_ban && !raw_result.coordonnee_cartographique_y_ban && raw_result.adresse_complete_brut) {
@@ -444,7 +454,7 @@ export const useApiDpeStore = defineStore('api-dpe', {
         promisesToWait.push(fetch(`https://data.ademe.fr/data-fair/api/v1/datasets/dpe03existant/lines?${searchParams.toString()}`)
           .then(data => data.json())
           .then(async data => {
-            return { total: data.total, items: await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResult(raw_result))) }
+            return { total: data.total, items: await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResultAfter2021_07_01(raw_result))) }
           }))
       }
       const resultsFromAllAPI = await Promise.all(promisesToWait)

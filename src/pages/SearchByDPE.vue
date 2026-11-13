@@ -87,93 +87,282 @@
   </v-container>
 
   <v-container fluid>
-    <v-data-table-server
-      v-if="firstSearchDone"
-      v-model:sort-by="resultsSortBy"
-      density="compact"
-      fixed-header
-      :headers="resultsHeaders"
-      :hover="true"
-      :items="results"
-      :items-length="totalDPEItems"
-      :items-per-page="itemsPerPage"
-      :loading="loading"
-      sort-asc-icon="mdi-sort-ascending"
-      sort-desc-icon="mdi-sort-descending"
-      sort-icon="mdi-swap-vertical"
-      @update:items-per-page="changeItemPerPage"
-      @update:options="loadDPEItems"
-    >
-      <template #loading>
-        <v-skeleton-loader type="table-row@10" />
-      </template>
+    <template v-if="$vuetify.display.xs">
+      <v-data-iterator
+        v-if="firstSearchDone"
+        :items="results"
+        :items-per-page="itemsPerPage"
+        :loading="loading"
+      >
+        <template #header="{ page, pageCount, prevPage, nextPage }">
+          <h1 class="text-headline-large font-weight-bold d-flex justify-space-between mt-0 mb-4 align-center">
+            <div class="d-flex align-center">
+              <v-btn
+                class="me-8"
+                variant="text"
+              >
+                <span class="text-decoration-underline text-none">See all</span>
+              </v-btn>
 
-      <template #item="{ item }">
-        <tr>
-          <td>
-            <a v-if="item.dpe_date >= DPE_REPOSITORY_CHANGE_DATE" :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a>
-            <template v-else>{{ item.dpe_number }}</template>
-          </td>
+              <div class="d-inline-flex">
+                <v-btn
+                  class="me-2"
+                  :disabled="page === 1"
+                  icon="mdi-arrow-left"
+                  size="small"
+                  variant="tonal"
+                  @click="prevPage"
+                />
 
-          <td>{{ item.dpe_date.toLocaleDateString() }}</td>
+                <v-btn
+                  :disabled="page === pageCount"
+                  icon="mdi-arrow-right"
+                  size="small"
+                  variant="tonal"
+                  @click="nextPage"
+                />
+              </div>
+            </div>
+          </h1>
+        </template>
 
-          <td>
-            <template v-for="dpeNote in dpeNotes">
-              <v-chip
-                v-if="item.dpe_tag as DpeTag === dpeNote.value as DpeTag"
-                :key="dpeNote.label"
-                :color="dpeNote.color"
-                label
-                variant="flat"
-              >{{ dpeNote.label }}</v-chip>
-            </template>
-          </td>
+        <template #default="{ items }">
+          <v-row>
+            <v-col
+              v-for="(item, i) in items"
+              :key="i"
+              cols="12"
+              sm="6"
+              xl="3"
+            >
+              <v-card variant="tonal">
+                <v-card-title class="d-flex align-center">
+                  <h5 class="mt-0 mb-1">
+                    <GoogleMapsLink v-if="item.raw.full_address" :query="item.raw.full_address" :text="item.raw.full_address" />
 
-          <td>
-            <template v-if="item.habitable_surface">
-              {{ new Intl.NumberFormat("fr-FR", { style: "decimal" }).format(item.habitable_surface) }} m²
-            </template>
-          </td>
+                    <v-chip v-else color="warning" prepend-icon="mdi-map-marker-question">
+                      {{ t('searchbydpe.results.noAddress') }}
+                    </v-chip>
+                  </h5>
+                </v-card-title>
 
-          <td>{{ capitalize(getBuildingTypeDisplayString(item.building_type)) }}</td>
-          <td>{{ item.building_year }}</td>
+                <v-card-subtitle>
+                  <template v-for="dpeNote in dpeNotes">
+                    <v-chip
+                      v-if="item.raw.dpe_tag as DpeTag === dpeNote.value as DpeTag"
+                      :key="dpeNote.label"
+                      class="me-1"
+                      :color="dpeNote.color"
+                      label
+                      variant="flat"
+                    >{{ dpeNote.label }}</v-chip>
+                  </template>
 
-          <td>
-            <GoogleMapsLink v-if="item.full_address" :query="item.full_address" :text="item.full_address" />
+                  <v-icon v-if="item.raw.building_type" class="me-1">
+                    {{ getBuildingTypeIcon(item.raw.building_type) }}
+                  </v-icon>
 
-            <v-chip v-else color="warning" prepend-icon="mdi-map-marker-question">
-              {{ t('searchbydpe.results.noAddress') }}
-            </v-chip>
-          </td>
+                  {{ capitalize(getBuildingTypeDisplayString(item.raw.building_type)) }}
 
-          <td class="text-center">
-            <v-btn
-              density="compact"
-              :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
-              icon="mdi-map"
-              :title="t('searchbydpe.results.viewCadastre')"
-              @click="openCadastre(item)"
-            />
+                  <template v-if="item.raw.habitable_surface">
+                    - {{ new Intl.NumberFormat("fr-FR", { style: "decimal" }).format(item.raw.habitable_surface) }} m²
+                  </template>
+                </v-card-subtitle>
 
-            <v-btn
-              density="compact"
-              :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
-              icon="mdi-alert"
-              :title="t('searchbydpe.results.viewGeorisques')"
-              @click="openGeorisques(item)"
-            />
+                <v-card-text>
+                  <v-list lines="one">
+                    <v-list-item
+                      v-if="item.raw.building_year"
+                      :subtitle="item.raw.building_year"
+                      :title="t('searchbydpe.headers.buildingYear')"
+                    />
 
-            <v-btn
-              density="compact"
-              :disabled="!item.longitude || !item.latitude"
-              icon="mdi-currency-eur"
-              :title="t('searchbydpe.results.viewPricesMap')"
-              @click="openPricesMap(item)"
-            />
-          </td>
-        </tr>
-      </template>
-    </v-data-table-server>
+                    <v-list-item
+                      v-if="item.raw.parcel_surface"
+                      :subtitle="new Intl.NumberFormat('fr-FR', { style: 'decimal' }).format(item.raw.parcel_surface)"
+                      :title="t('searchbydpe.headers.parcelSurface')"
+                    />
+
+                    <v-list-item v-else>
+                      <v-btn
+                        density="compact"
+                        :disabled="!item.raw.longitude || !item.raw.latitude || !item.raw.insee_code_ban"
+                        icon="mdi-texture-box"
+                        :title="t('searchbydpe.results.computeParcelSurface')"
+                        @click="computeParcelSurface(item.raw)"
+                      />
+                    </v-list-item>
+
+                    <v-list-item
+                      :title="t('searchbydpe.headers.dpeNumber')"
+                    >
+                      <v-list-item-subtitle>
+                        <a
+                          v-if="item.raw.dpe_date >= DPE_REPOSITORY_CHANGE_DATE"
+                          :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.raw.dpe_number}`"
+                          target="_blank"
+                          :title="t('searchbydpe.results.viewDPE')"
+                        >
+                          {{ item.raw.dpe_number }}
+                        </a>
+
+                        <template v-else>{{ item.raw.dpe_number }}</template>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                  </v-list>
+                </v-card-text>
+
+                <v-card-actions>
+                  <v-btn
+                    :disabled="!item.raw.longitude || !item.raw.latitude || !item.raw.insee_code_ban"
+                    icon="mdi-map"
+                    :title="t('searchbydpe.results.viewCadastre')"
+                    @click="openCadastre(item.raw)"
+                  />
+
+                  <v-btn
+                    :disabled="!item.raw.longitude || !item.raw.latitude || !item.raw.insee_code_ban"
+                    icon="mdi-alert"
+                    :title="t('searchbydpe.results.viewGeorisques')"
+                    @click="openGeorisques(item.raw)"
+                  />
+
+                  <v-btn
+                    :disabled="!item.raw.longitude || !item.raw.latitude"
+                    icon="mdi-currency-eur"
+                    :title="t('searchbydpe.results.viewPricesMap')"
+                    @click="openPricesMap(item.raw)"
+                  />
+                </v-card-actions>
+              </v-card>
+            </v-col>
+          </v-row>
+        </template>
+
+        <template #loader>
+          <v-row>
+            <v-col
+              v-for="(_, k) in [0, 1, 2, 3]"
+              :key="k"
+              cols="12"
+              sm="6"
+              xl="3"
+            >
+              <v-skeleton-loader
+                class="border"
+                type="image, article"
+              />
+            </v-col>
+          </v-row>
+        </template>
+      </v-data-iterator>
+    </template>
+
+    <template v-else>
+      <v-data-table-server
+        v-if="firstSearchDone"
+        v-model:sort-by="resultsSortBy"
+        density="compact"
+        fixed-header
+        :headers="resultsHeaders"
+        :hover="true"
+        :items="results"
+        :items-length="totalDPEItems"
+        :items-per-page="itemsPerPage"
+        :loading="loading"
+        sort-asc-icon="mdi-sort-ascending"
+        sort-desc-icon="mdi-sort-descending"
+        sort-icon="mdi-swap-vertical"
+        @update:items-per-page="changeItemPerPage"
+        @update:options="loadDPEItems"
+      >
+        <template #loading>
+          <v-skeleton-loader type="table-row@10" />
+        </template>
+
+        <template #item="{ item }">
+          <tr>
+            <td>
+              <a v-if="item.dpe_date >= DPE_REPOSITORY_CHANGE_DATE" :href="`https://observatoire-dpe-audit.ademe.fr/afficher-dpe/${item.dpe_number}`" target="_blank" :title="t('searchbydpe.results.viewDPE')">{{ item.dpe_number }}</a>
+              <template v-else>{{ item.dpe_number }}</template>
+            </td>
+
+            <td>{{ item.dpe_date.toLocaleDateString() }}</td>
+
+            <td>
+              <template v-for="dpeNote in dpeNotes">
+                <v-chip
+                  v-if="item.dpe_tag as DpeTag === dpeNote.value as DpeTag"
+                  :key="dpeNote.label"
+                  :color="dpeNote.color"
+                  label
+                  variant="flat"
+                >{{ dpeNote.label }}</v-chip>
+              </template>
+            </td>
+
+            <td>
+              <template v-if="item.habitable_surface">
+                {{ new Intl.NumberFormat("fr-FR", { style: "decimal" }).format(item.habitable_surface) }} m²
+              </template>
+            </td>
+
+            <td>
+              <template v-if="item.parcel_surface">
+                {{ new Intl.NumberFormat("fr-FR", { style: "decimal" }).format(item.parcel_surface) }} m²
+              </template>
+
+              <template v-else>
+                <v-btn
+                  density="compact"
+                  :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
+                  icon="mdi-texture-box"
+                  :title="t('searchbydpe.results.computeParcelSurface')"
+                  @click="computeParcelSurface(item)"
+                />
+              </template>
+            </td>
+
+            <td>{{ capitalize(getBuildingTypeDisplayString(item.building_type)) }}</td>
+            <td>{{ item.building_year }}</td>
+
+            <td>
+              <GoogleMapsLink v-if="item.full_address" :query="item.full_address" :text="item.full_address" />
+
+              <v-chip v-else color="warning" prepend-icon="mdi-map-marker-question">
+                {{ t('searchbydpe.results.noAddress') }}
+              </v-chip>
+            </td>
+
+            <td class="text-center">
+              <v-btn
+                density="compact"
+                :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
+                icon="mdi-map"
+                :title="t('searchbydpe.results.viewCadastre')"
+                @click="openCadastre(item)"
+              />
+
+              <v-btn
+                density="compact"
+                :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
+                icon="mdi-alert"
+                :title="t('searchbydpe.results.viewGeorisques')"
+                @click="openGeorisques(item)"
+              />
+
+              <v-btn
+                density="compact"
+                :disabled="!item.longitude || !item.latitude"
+                icon="mdi-currency-eur"
+                :title="t('searchbydpe.results.viewPricesMap')"
+                @click="openPricesMap(item)"
+              />
+            </td>
+          </tr>
+        </template>
+      </v-data-table-server>
+    </template>
   </v-container>
 </template>
 
@@ -212,6 +401,7 @@
     { title: t('searchbydpe.headers.dpeDate'), key: 'dpe_date' },
     { title: t('searchbydpe.headers.dpeTag'), key: 'dpe_tag' },
     { title: t('searchbydpe.headers.habitableSurface'), key: 'habitable_surface' },
+    { title: t('searchbydpe.headers.parcelSurface'), key: 'parcel_surface' },
     { title: t('searchbydpe.headers.buildingType'), key: 'building_type' },
     { title: t('searchbydpe.headers.buildingYear'), key: 'building_year' },
     { title: t('searchbydpe.headers.address'), key: 'address', sortable: false },
@@ -229,6 +419,16 @@
     itemsPerPage.value = nbItemsPerPage
   }
 
+  async function computeParcelSurface (result: DpeResult) {
+    if (!result.longitude || !result.latitude || !result.insee_code_ban) {
+      return
+    }
+    const parcelId = await getDpeParcelId(result)
+    if (parcelId) {
+      const parcelInfo = await geocodageApiStore.getInformationFromParcelId(parcelId)
+      result.parcel_surface = parcelInfo.surface
+    }
+  }
   function getBuildingTypeDisplayString (buildingType: DpeBuildingType | string | null): string {
     if (typeof buildingType === 'string' && Object.values(DpeBuildingType).includes(buildingType as DpeBuildingType)) {
       buildingType = buildingType as DpeBuildingType
@@ -241,6 +441,20 @@
       }
     }
     return t('searchbydpe.results.buildingTypeUnknown')
+  }
+
+  function getBuildingTypeIcon (buildingType: DpeBuildingType | string | null): string {
+    if (typeof buildingType === 'string' && Object.values(DpeBuildingType).includes(buildingType as DpeBuildingType)) {
+      buildingType = buildingType as DpeBuildingType
+    }
+    if (typeof buildingType === 'string') {
+      switch (buildingType) {
+        case DpeBuildingType.HOUSE: { return 'mdi-home' }
+        case DpeBuildingType.APARTMENT: { return 'mdi-floor-plan' }
+        case DpeBuildingType.BUILDING: { return 'mdi-office-building' }
+      }
+    }
+    return 'mdi-cancel'
   }
 
   function openPricesMap (result: DpeResult) {
@@ -276,16 +490,23 @@
     return false
   }
 
+  async function getDpeParcelId (result: DpeResult) {
+    if (!result.parcelId) {
+      const parcelId = await geocodageApiStore.getCadastreParcelId({
+        longitude: result.longitude ?? 0,
+        latitude: result.latitude ?? 0,
+        cityInseeCode: result.insee_code_ban ?? null,
+      })
+      result.parcelId = parcelId
+    }
+    return result.parcelId
+  }
+
   async function openCadastre (result: DpeResult) {
     // Get closest parcel number from coordinates
     const zoomLevel = 18
 
-    const parcelId = await geocodageApiStore.getCadastreParcelId({
-      longitude: result.longitude ?? 0,
-      latitude: result.latitude ?? 0,
-      cityInseeCode: result.insee_code_ban ?? null,
-    })
-    let cadastreLink = `https://cadastre.data.gouv.fr/map?style=ortho&parcelleId=${parcelId}#${zoomLevel}/`
+    let cadastreLink = `https://cadastre.data.gouv.fr/map?style=ortho&parcelleId=${await getDpeParcelId(result)}#${zoomLevel}/`
     if (result.longitude != 0 && result.latitude != 0) {
       cadastreLink += `${result.latitude}/${result.longitude}`
     }
