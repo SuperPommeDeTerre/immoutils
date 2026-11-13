@@ -215,9 +215,11 @@
                 <v-card-actions>
                   <v-btn
                     :disabled="!item.raw.longitude || !item.raw.latitude || !item.raw.insee_code_ban"
+                    :href="getCadastreLink(item.raw)"
                     icon="mdi-map"
+                    target="_blank"
                     :title="t('searchbydpe.results.viewCadastre')"
-                    @click="openCadastre(item.raw)"
+                    @click="getCadastreLink(item.raw)"
                   />
 
                   <v-btn
@@ -337,10 +339,11 @@
             <td class="text-center">
               <v-btn
                 density="compact"
-                :disabled="!item.longitude || !item.latitude || !item.insee_code_ban"
+                :disabled="!item.parcel_id"
+                :href="getCadastreLink(item)"
                 icon="mdi-map"
+                target="_blank"
                 :title="t('searchbydpe.results.viewCadastre')"
-                @click="openCadastre(item)"
               />
 
               <v-btn
@@ -401,7 +404,7 @@
     { title: t('searchbydpe.headers.dpeDate'), key: 'dpe_date' },
     { title: t('searchbydpe.headers.dpeTag'), key: 'dpe_tag' },
     { title: t('searchbydpe.headers.habitableSurface'), key: 'habitable_surface' },
-    { title: t('searchbydpe.headers.parcelSurface'), key: 'parcel_surface' },
+    { title: t('searchbydpe.headers.parcelSurface'), key: 'parcel_surface', sortable: false },
     { title: t('searchbydpe.headers.buildingType'), key: 'building_type' },
     { title: t('searchbydpe.headers.buildingYear'), key: 'building_year' },
     { title: t('searchbydpe.headers.address'), key: 'address', sortable: false },
@@ -423,7 +426,7 @@
     if (!result.longitude || !result.latitude || !result.insee_code_ban) {
       return
     }
-    const parcelId = await getDpeParcelId(result)
+    const parcelId = result.parcel_id
     if (parcelId) {
       const parcelInfo = await geocodageApiStore.getInformationFromParcelId(parcelId)
       result.parcel_surface = parcelInfo.surface
@@ -490,28 +493,15 @@
     return false
   }
 
-  async function getDpeParcelId (result: DpeResult) {
-    if (!result.parcelId) {
-      const parcelId = await geocodageApiStore.getCadastreParcelId({
-        longitude: result.longitude ?? 0,
-        latitude: result.latitude ?? 0,
-        cityInseeCode: result.insee_code_ban ?? null,
-      })
-      result.parcelId = parcelId
-    }
-    return result.parcelId
-  }
-
-  async function openCadastre (result: DpeResult) {
+  function getCadastreLink (result: DpeResult) {
     // Get closest parcel number from coordinates
     const zoomLevel = 18
 
-    let cadastreLink = `https://cadastre.data.gouv.fr/map?style=ortho&parcelleId=${await getDpeParcelId(result)}#${zoomLevel}/`
+    let cadastreLink = `https://cadastre.data.gouv.fr/map?style=ortho&parcelleId=${result.parcel_id ?? ''}#${zoomLevel}/`
     if (result.longitude != 0 && result.latitude != 0) {
       cadastreLink += `${result.latitude}/${result.longitude}`
     }
-    window.open(cadastreLink, '_blank')
-    return false
+    return cadastreLink
   }
 
   function validateCriterias (e: Event) {

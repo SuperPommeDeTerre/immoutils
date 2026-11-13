@@ -21,11 +21,24 @@ const messages = {
     searchbydpe: {
       title: 'Search by Energetical Performance Diagnostic (French DPE)',
       search: {
-        city: 'City',
+        city: {
+          label: 'City',
+          hint: 'Find the city name as entered by the diagnostician.',
+        },
         buildingType: 'Building type',
-        dateDPE: 'EPD issue date',
+        dateDPE: {
+          label: 'Diagnostic issue date',
+          hint: 'Warning: Searches before 07-01-2021 may take longer.',
+        },
+        cityPostalCodes: {
+          label: 'Postal codes',
+          hint: 'You can enter multiple postal codes to search across multiple cities.',
+        },
         dpeTag: 'EPD tag',
-        buildingSurface: 'Habitable surface',
+        buildingSurface: {
+          label: 'Habitable surface',
+          hint: 'Surface in m² (a search within +/- 10% will be performed).',
+        },
         buildingSurfaceHint: 'Surface in m² (a search within +/- 10% will be performed)',
         searchButton: 'Search',
       },
@@ -34,6 +47,7 @@ const messages = {
         dpeDate: 'Issuing date',
         dpeTag: 'EPD tag',
         habitableSurface: 'Habitable surface',
+        parcelId: 'Parcel ID',
         parcelSurface: 'Parcel surface',
         buildingType: 'Building type',
         buildingYear: 'Year of construction',
@@ -41,11 +55,13 @@ const messages = {
         links: 'Links',
       },
       results: {
+        computeParcelSurface: 'Compute parcel surface',
         viewDPE: 'View DPE',
         viewCadastre: 'View cadastre',
         viewGeorisques: 'View georisques',
         viewPricesMap: 'View recent building sales',
         buildingTypeUnknown: 'unknown',
+        noAddress: 'Address not available',
       },
     },
   },
@@ -93,6 +109,7 @@ const messages = {
         dpeDate: 'Date d\'établissement',
         dpeTag: 'Etiquette DPE',
         habitableSurface: 'Surface habitable',
+        parcelId: 'N° de parcelle',
         parcelSurface: 'Surface parcelle',
         buildingType: 'Type de bâtiment',
         buildingYear: 'Année de construction',

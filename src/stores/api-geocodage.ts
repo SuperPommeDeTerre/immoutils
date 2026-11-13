@@ -34,7 +34,7 @@ export const useApiGeocodageStore = defineStore('api-geocodage', {
           radius: 5,
         }),
         index: 'parcel',
-        limit: '10',
+        limit: '2',
         returntruegeometry: 'false',
         departmentcode: criterias.cityInseeCode?.slice(0, 2) ?? '',
         municipalitycode: criterias.cityInseeCode?.slice(2) ?? '',

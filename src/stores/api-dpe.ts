@@ -3,8 +3,6 @@ import { defineStore } from 'pinia'
 import proj4 from 'proj4'
 import { useApiGeocodageStore } from './api-geocodage'
 
-const cadastreStore = useApiGeocodageStore()
-
 /**
  * Allewed DPE tags
  */
@@ -64,7 +62,7 @@ export interface DpeResult {
   postal_code_ban?: string | null
   insee_code_ban?: string | null
   full_address: string
-  parcelId?: string | null
+  parcel_id?: string | null
   building_year?: number | null
   building_type: DpeBuildingType | string | null
   housing_typology?: string | null
@@ -194,7 +192,8 @@ function searchCriteriasToURLSearchParamsForAPIAfter2021_07_01 (criterias: DpeAp
     'coordonnee_cartographique_x_ban',
     'coordonnee_cartographique_y_ban',
     'surface_habitable_logement',
-    'surface_habitable_immeuble'].join(','))
+    'surface_habitable_immeuble',
+    'identifiant_ban'].join(','))
   if (criterias.itemsPerPage === -1) {
     searchParams.append('size', '1000')
   } else {
@@ -455,6 +454,34 @@ export const useApiDpeStore = defineStore('api-dpe', {
           .then(data => data.json())
           .then(async data => {
             return { total: data.total, items: await Promise.all(data.results.map((raw_result: any) => rawApiResultToDpeResultAfter2021_07_01(raw_result))) }
+          })
+          .then(async data => {
+            // Gets all the parcel ids from the DPE results
+            const formData = new FormData()
+            let csvContent = 'departmentcode,municipalitycode,lon,lat\n'
+            for (const itemData of data.items) {
+              csvContent += `${itemData.insee_code_ban?.slice(0, 2)},${itemData.insee_code_ban?.slice(2)},${itemData.longitude},${itemData.latitude}\n`
+            }
+            const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+            formData.append('data', csvBlob)
+            formData.append('indexes', 'parcel')
+            formData.append('lon', 'lon')
+            formData.append('lat', 'lat')
+            formData.append('departmentcode', 'departmentcode')
+            formData.append('municipalitycode', 'municipalitycode')
+            formData.append('result_columns', 'result_id')
+            const csvResponse = await fetch('https://data.geopf.fr/geocodage/reverse/csv', {
+              method: 'POST',
+              body: formData,
+            })
+            const csvText = await csvResponse.text()
+            const responseLines = csvText.split('\n')
+            for (const [index, itemData] of data.items.entries()) {
+              const responseLine = responseLines[index + 1] // Skip header line
+              const responseColumns = responseLine.split(',')
+              itemData.parcel_id = responseColumns.at(-1) // Assuming result_id is the last column
+            }
+            return data
           }))
       }
       const resultsFromAllAPI = await Promise.all(promisesToWait)
